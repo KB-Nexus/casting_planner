@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DÖKÜM PLANLAMA SİSTEMİ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 15px;
+            height: calc(100vh - 20px);
+        }
+
+        .panel {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: auto;
+        }
+
+        .panel h2 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .stock-item {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+        }
+
+        .stock-item label {
+            margin-bottom: 0;
+            align-self: center;
+        }
+
+        .info-box {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 12px;
+            margin: 15px 0;
+            border-radius: 5px;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .info-box strong {
+            color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .table-container {
+            flex: 1;
+            overflow: auto;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        thead {
+            background: #667eea;
+            color: white;
+            position: sticky;
+            top: 0;
+        }
+
+        th {
+            padding: 10px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #667eea;
+        }
+
+        td {
+            padding: 0 10px;
+            border-bottom: 1px solid #eee;
+            vertical-align: middle;
+            overflow: hidden;
+            white-space: nowrap;
+            max-height: var(--row-h, 40px);
+        }
+
+        tbody tr:hover {
+            background: #f9f9f9;
+        }
+
+        .casting-own {
+            background: #ffc874 !important;
+            font-weight: 500;
+        }
+
+        .casting-customer {
+            background: #c8e6c9 !important;
+        }
+
+        .alert {
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-size: 12px;
+            display: none;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .alert.success {
+            background: #c8e6c9;
+            color: #2e7d32;
+            border: 1px solid #a5d6a7;
+        }
+
+        .alert.error {
+            background: #ffcdd2;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
+        }
+
+        .alert.info {
+            background: #b3e5fc;
+            color: #01579b;
+            border: 1px solid #81d4fa;
+        }
+
+        .time-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .time-inputs > div {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .time-inputs input {
+            padding: 6px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sol Panel: Stok Giriş -->
+        <div class="panel">
+            <h2>📦 STOK BİLGİSİ</h2>
+            
+            <div class="stock-item">
+                <label>127mm Çap Stok (ton):</label>
+                <input type="number" id="stock127" value="100" min="0">
+            </div>
+            <div class="stock-item">
+                <label>178mm Çap Stok (ton):</label>
+                <input type="number" id="stock178" value="100" min="0">
+            </div>
+            <div class="stock-item">
+                <label>203mm Çap Stok (ton):</label>
+                <input type="number" id="stock203" value="100" min="0">
+            </div>
+            <div class="stock-item">
+                <label>254mm Çap Stok (ton):</label>
+                <input type="number" id="stock254" value="100" min="0">
+            </div>
+
+            <div class="info-box">
+                <strong>Günlük Kullanım:</strong><br>
+                127mm: 13 ton/gün<br>
+                178mm: 20 ton/gün<br>
+                203mm: 24 ton/gün<br>
+                254mm: 36 ton/gün
+            </div>
+
+            <div class="info-box">
+                <strong>Bizim Döküm Miktarı:</strong> 27 ton<br>
+                <strong>Hazırlık Süresi:</strong> 24 saat<br>
+                <strong>Döküm Aralığı:</strong> 11 saat<br>
+                <strong>Kritik Eşik:</strong> Stok biteceği saate 24 saat kala
+            </div>
+
+            <h3 style="font-size: 13px; margin-top: 20px; margin-bottom: 10px; color: #333;">Ocakların Son Döküm Saatleri:</h3>
+            <div class="time-inputs">
+                <div>
+                    <label style="font-size: 11px;">Ocak 1 (HH:MM):</label>
+                    <input type="time" id="lastCasting1">
+                </div>
+                <div>
+                    <label style="font-size: 11px;">Ocak 2 (HH:MM):</label>
+                    <input type="time" id="lastCasting2">
+                </div>
+                <div style="grid-column: span 2;">
+                    <label style="font-size: 11px;">Ocak 3 (HH:MM):</label>
+                    <input type="time" id="lastCasting3">
+                </div>
+            </div>
+
+            <button onclick="generatePlan()">📋 PLANI OLUŞTUR</button>
+            <div id="alert" class="alert"></div>
+        </div>
+
+        <!-- Sağ Panel: Haftalık Plan -->
+        <div class="right-panel">
+            <div class="panel">
+                <h2>📅 HAFTALIK PLAN</h2>
+                
+                <div class="table-container" id="tableContainer">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Slot</th>
+                                <th>Gün / Saat</th>
+                                <th>Ocak</th>
+                                <th>Çap</th>
+                                <th>Tür</th>
+                                <th>Durum</th>
+                            </tr>
+                        </thead>
+                        <tbody id="planTable">
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: #999;">
+                                    Stok girin ve planı oluşturun
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sabitler
+        const CASTING_INTERVAL = 11;
+        const WEEK_HOURS = 168;
+        const OUR_CASTING_AMOUNT = 27;
+
+        const DIAMETERS = {
+            "127": { daily_usage: 13 },
+            "178": { daily_usage: 20 },
+            "203": { daily_usage: 24 },
+            "254": { daily_usage: 36 }
+        };
+
+        let castings = [];
+        let stocks = {};
+        let lastCastingTimes = [null, null, null];
+        const CRITICAL_SLOT_GRACE_HOURS = CASTING_INTERVAL;
+
+        function showAlert(msg, type) {
+            const alert = document.getElementById("alert");
+            alert.textContent = msg;
+            alert.className = `alert ${type}`;
+            alert.style.display = "block";
+        }
+
+        function getStocks() {
+            return {
+                "127": parseInt(document.getElementById("stock127").value) || 0,
+                "178": parseInt(document.getElementById("stock178").value) || 0,
+                "203": parseInt(document.getElementById("stock203").value) || 0,
+                "254": parseInt(document.getElementById("stock254").value) || 0
+            };
+        }
+
+        function getLastCastingTimes() {
+            const now = new Date();
+            const times = [null, null, null];
+
+            for (let i = 0; i < 3; i++) {
+                const input = document.getElementById(`lastCasting${i + 1}`);
+                if (input && input.value) {
+                    const [hours, minutes] = input.value.split(':').map(Number);
+                    const lastTime = new Date(now);
+                    lastTime.setHours(hours, minutes, 0, 0);
+
+                    if (lastTime > now) {
+                        lastTime.setDate(lastTime.getDate() - 1);
+                    }
+                    times[i] = lastTime;
+                }
+            }
+            return times;
+        }
+
+        function calculateCriticalTimes() {
+            const now = new Date();
+            const criticals = [];
+
+            for (const [diameter, info] of Object.entries(DIAMETERS)) {
+                const initialStock = stocks[diameter] || 0;
+                const dailyUsage = info.daily_usage;
+
+                // İlk döküm zamanı hesapla
+                const hoursUntilEmpty = dailyUsage > 0 ? (initialStock / dailyUsage) * 24 : Infinity;
+                const firstCastingTime = hoursUntilEmpty - 24;
+
+                if (firstCastingTime > 0 && firstCastingTime < WEEK_HOURS) {
+                    const criticalTime = new Date(now.getTime() + firstCastingTime * 3600000);
+                    criticals.push({
+                        diameter,
+                        criticalTime,
+                        hoursUntilCritical: firstCastingTime,
+                        stock: initialStock,
+                        dailyUsage,
+                        castingNumber: 1
+                    });
+                }
+
+                // İkinci döküm zamanı (ilk döküm sonrası)
+                if (firstCastingTime > 0) {
+                    const stockAfterFirst = initialStock + OUR_CASTING_AMOUNT;
+                    const hoursUntilEmptyAfter = dailyUsage > 0 ? (stockAfterFirst / dailyUsage) * 24 : Infinity;
+                    const secondCastingTime = firstCastingTime + hoursUntilEmptyAfter - 24;
+
+                    if (secondCastingTime > 0 && secondCastingTime < WEEK_HOURS) {
+                        const criticalTime = new Date(now.getTime() + secondCastingTime * 3600000);
+                        criticals.push({
+                            diameter,
+                            criticalTime,
+                            hoursUntilCritical: secondCastingTime,
+                            stock: stockAfterFirst,
+                            dailyUsage,
+                            castingNumber: 2
+                        });
+                    }
+                }
+            }
+
+            return criticals.sort((a, b) => a.hoursUntilCritical - b.hoursUntilCritical);
+        }
+
+        function getFirstSlotForOven(ovenIndex, now) {
+            let firstSlot = new Date(now);
+
+            if (lastCastingTimes[ovenIndex]) {
+                firstSlot = new Date(lastCastingTimes[ovenIndex].getTime() + CASTING_INTERVAL * 3600000);
+            }
+
+            if (firstSlot < now) {
+                firstSlot = new Date(now);
+            }
+
+            return firstSlot;
+        }
+
+        function findPreviousSlotForCritical(ovenIndex, criticalTime, now) {
+            let slotTime = getFirstSlotForOven(ovenIndex, now);
+            let previousSlot = null;
+
+            while (slotTime <= criticalTime) {
+                previousSlot = new Date(slotTime);
+                slotTime = new Date(slotTime.getTime() + CASTING_INTERVAL * 3600000);
+            }
+
+            if (!previousSlot) {
+                return null;
+            }
+
+            const diffHours = (criticalTime - previousSlot) / 3600000;
+            return diffHours >= 0 && diffHours <= CRITICAL_SLOT_GRACE_HOURS ? previousSlot : null;
+        }
+
+        function findBestSlotForCritical(criticalTime, now) {
+            let bestSlot = null;
+
+            for (let ovenIndex = 0; ovenIndex < 3; ovenIndex++) {
+                const slotTime = findPreviousSlotForCritical(ovenIndex, criticalTime, now);
+                if (!slotTime) {
+                    continue;
+                }
+
+                if (!bestSlot || slotTime > bestSlot.scheduledTime) {
+                    bestSlot = {
+                        ovenIndex,
+                        scheduledTime: slotTime
+                    };
+                }
+            }
+
+            return bestSlot;
+        }
+
+        function generatePlan() {
+            try {
+                stocks = getStocks();
+                lastCastingTimes = getLastCastingTimes();
+                castings = [];
+
+                const now = new Date();
+                const weekEnd = new Date(now.getTime() + WEEK_HOURS * 3600000);
+
+                const criticals = calculateCriticalTimes();
+
+                // Kritik dökümleri ocaklara dağıt
+                const ovenSchedules = [[], [], []];
+
+                criticals.forEach((crit, index) => {
+                    const preferredSlot = findBestSlotForCritical(crit.criticalTime, now);
+                    const ovenIndex = preferredSlot ? preferredSlot.ovenIndex : index % 3;
+                    let scheduledTime = preferredSlot
+                        ? new Date(preferredSlot.scheduledTime)
+                        : new Date(crit.criticalTime);
+
+                    // Ocağın son döküm saatini kontrol et
+                    if (lastCastingTimes[ovenIndex]) {
+                        const nextTime = new Date(lastCastingTimes[ovenIndex].getTime() + CASTING_INTERVAL * 3600000);
+                        if (scheduledTime < nextTime) {
+                            scheduledTime = new Date(nextTime);
+                        }
+                    }
+
+                    const lastCastingInOven = ovenSchedules[ovenIndex].length > 0
+                        ? ovenSchedules[ovenIndex][ovenSchedules[ovenIndex].length - 1].scheduledTime
+                        : null;
+
+                    if (lastCastingInOven) {
+                        const nextTime = new Date(lastCastingInOven.getTime() + CASTING_INTERVAL * 3600000);
+                        if (scheduledTime < nextTime) {
+                            scheduledTime = new Date(nextTime);
+                        }
+                    }
+
+                    // Geçmiş zamanı engelle
+                    if (scheduledTime < now) {
+                        scheduledTime = new Date(now.getTime() + 3600000);
+                    }
+
+                    if (scheduledTime < weekEnd) {
+                        const casting = {
+                            slotNumber: castings.length + 1,
+                            scheduledTime: scheduledTime,
+                            diameter: crit.diameter,
+                            ovenIndex: ovenIndex,
+                            type: "own",
+                            status: `KRİTİK ${crit.castingNumber}.Döküm (${crit.stock}→${crit.stock + OUR_CASTING_AMOUNT}ton)`
+                        };
+                        castings.push(casting);
+                        ovenSchedules[ovenIndex].push(casting);
+                    }
+                });
+
+                // Müşteri dökümü için boş slotlar oluştur
+                for (let ovenIndex = 0; ovenIndex < 3; ovenIndex++) {
+                    let currentTime = new Date(now);
+
+                    if (lastCastingTimes[ovenIndex]) {
+                        currentTime = new Date(lastCastingTimes[ovenIndex].getTime() + CASTING_INTERVAL * 3600000);
+                    }
+
+                    if (currentTime < now) {
+                        currentTime = new Date(now);
+                    }
+
+                    let count = 0;
+                    while (currentTime < weekEnd && count < 20) {
+                        const isCritical = ovenSchedules[ovenIndex].some(c => {
+                            const diff = Math.abs(c.scheduledTime - currentTime) / 3600000;
+                            return diff < 1;
+                        });
+
+                        if (!isCritical) {
+                            const casting = {
+                                slotNumber: castings.length + 1,
+                                scheduledTime: new Date(currentTime),
+                                diameter: "Boş",
+                                ovenIndex: ovenIndex,
+                                type: "customer",
+                                status: "Müşteri dökümü için uygun"
+                            };
+                            castings.push(casting);
+                            ovenSchedules[ovenIndex].push(casting);
+                        }
+
+                        currentTime = new Date(currentTime.getTime() + CASTING_INTERVAL * 3600000);
+                        count++;
+                    }
+                }
+
+                castings.sort((a, b) => a.scheduledTime - b.scheduledTime);
+                castings.forEach((c, i) => {
+                    c.slotNumber = i + 1;
+                });
+
+                // Tabloyu güncelle
+                updateTable();
+
+                // Kritik zamanları göster
+                if (criticals.length > 0) {
+                    let msg = "🚨 KRİTİK DÖKÜM ZAMANLARı:\n\n";
+                    criticals.forEach((c, idx) => {
+                        const timeStr = c.criticalTime.toLocaleString('tr-TR', {
+                            weekday: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                        const ovenNum = (idx % 3) + 1;
+                        msg += `${idx + 1}. ${c.diameter}mm (Ocak ${ovenNum}) - ${c.castingNumber}.Döküm\n`;
+                        msg += `   ${timeStr} (${c.hoursUntilCritical.toFixed(1)}h sonra)\n`;
+                        msg += `   ${c.stock}ton → ${c.stock + OUR_CASTING_AMOUNT}ton\n\n`;
+                    });
+                    showAlert(msg, 'info');
+                } else {
+                    showAlert("ℹ️ Bu hafta kritik döküm gerekmeyebilir", 'info');
+                }
+            } catch (e) {
+                showAlert("HATA: " + e.message, 'error');
+                console.error(e);
+            }
+        }
+
+        function updateTable() {
+            const tbody = document.getElementById("planTable");
+            tbody.innerHTML = "";
+
+            // Satır yüksekliğini önceden hesapla (tablo render edilmeden önce)
+            const container = document.getElementById("tableContainer");
+            const thead = container.querySelector("thead");
+            const rowH = Math.floor((container.clientHeight - thead.offsetHeight) / 14);
+            document.documentElement.style.setProperty('--row-h', rowH + 'px');
+
+            function addRow(innerHTML, cls) {
+                const row = document.createElement("tr");
+                row.style.height = rowH + "px";
+                row.innerHTML = innerHTML;
+                tbody.appendChild(row);
+            }
+
+            castings.forEach(casting => {
+                const dayTime = casting.scheduledTime.toLocaleString('tr-TR', {
+                    weekday: 'short',
+                    day: '2-digit',
+                    month: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                const c = casting.type === "own" ? "casting-own" : "casting-customer";
+                const typeText = casting.type === "own" ? "Kendi" : "Müşteri";
+                const ovenText = casting.diameter === "Boş" ? "-" : `Ocak ${casting.ovenIndex + 1}`;
+
+                addRow(`
+                    <td class="${c}">${casting.slotNumber}</td>
+                    <td class="${c}">${dayTime}</td>
+                    <td class="${c}">${ovenText}</td>
+                    <td class="${c}">${casting.diameter}</td>
+                    <td class="${c}">${typeText}</td>
+                    <td class="${c}">${casting.status}</td>
+                `);
+            });
+
+            // 14 satıra tamamla
+            for (let i = castings.length; i < 14; i++) {
+                addRow(`<td colspan="6"></td>`);
+            }
+        }
+    </script>
+</body>
+</html>
