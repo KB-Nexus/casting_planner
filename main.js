@@ -274,7 +274,9 @@ async function atomicWrite(jsonString) {
 }
 
 function makeStamp() {
-    return new Date().toISOString().replace('T', '_').replace(/:/g, '-').slice(0, 19);
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
 }
 
 function readCloudConfig() {
