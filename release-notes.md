@@ -1,4 +1,5 @@
-Diğer bilgisayarda açılışta eski veriler görünme sorunu düzeltildi:
+Diğer bilgisayarda plan tablosunun yanlış/eski görünmesi sorunu düzeltildi:
 
-- Uygulama açılışında plan tablosu (siparişler ve ocak atamaları) artık ağdaki güncel veriyle senkronize ediliyor.
-- Önceki sürümde bu veriler yalnızca "Kayıttan Yükle" butonu ile güncelleniyordu; artık otomatik olarak yükleniyor.
+- Ocak zamanlamaları (slotPlan), kapalı ocaklar ve manuel eklenen slotlar artık ağa kaydediliyor ve diğer bilgisayara aktarılıyor.
+- Bu veriler daha önce yalnızca yerel olarak tutulduğundan diğer PC açıldığında farklı plan görünüyordu.
+- Ocak zamanı veya ocak durumu değiştirildiğinde ağ senkronizasyonu otomatik olarak tetikleniyor.

@@ -12190,6 +12190,9 @@
                 settings: JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"),
                 orders: JSON.parse(localStorage.getItem(ORDER_STORAGE_KEY) || "[]"),
                 manualKmSlots: JSON.parse(JSON.stringify(manualKmSlots)),
+                manualInsertedSlots: JSON.parse(localStorage.getItem(MANUAL_INSERTED_SLOTS_KEY) || "[]"),
+                slotPlan: JSON.parse(localStorage.getItem(SLOT_PLAN_STORAGE_KEY) || "null"),
+                closedOvens: JSON.parse(localStorage.getItem(CLOSED_OVENS_STORAGE_KEY) || "[]"),
                 completedCastings: JSON.parse(localStorage.getItem(COMPLETED_CASTING_STORAGE_KEY) || "[]"),
                 analysisPortfolio: JSON.parse(localStorage.getItem(ANALYSIS_PORTFOLIO_STORAGE_KEY) || "[]"),
                 kmAnalysisSettings: JSON.parse(localStorage.getItem(KM_ANALYSIS_STORAGE_KEY) || "{}"),
@@ -12272,6 +12275,9 @@
             if (data.manualKmSlots && forceOrders) {
                 localStorage.setItem(MANUAL_SLOT_STORAGE_KEY, JSON.stringify(data.manualKmSlots));
             }
+            if (data.manualInsertedSlots && forceOrders) localStorage.setItem(MANUAL_INSERTED_SLOTS_KEY, JSON.stringify(data.manualInsertedSlots));
+            if (data.slotPlan && forceOrders) localStorage.setItem(SLOT_PLAN_STORAGE_KEY, JSON.stringify(data.slotPlan));
+            if (data.closedOvens && forceOrders) localStorage.setItem(CLOSED_OVENS_STORAGE_KEY, JSON.stringify(data.closedOvens));
             if (data.completedCastings && networkIsNewer) localStorage.setItem(COMPLETED_CASTING_STORAGE_KEY, JSON.stringify(data.completedCastings));
             if (data.analysisPortfolio && networkIsNewer) localStorage.setItem(ANALYSIS_PORTFOLIO_STORAGE_KEY, JSON.stringify(data.analysisPortfolio));
             if (data.kmAnalysisSettings && networkIsNewer) localStorage.setItem(KM_ANALYSIS_STORAGE_KEY, JSON.stringify(data.kmAnalysisSettings));
@@ -12362,6 +12368,15 @@
 
         const _origSaveQualityPortfolio = saveQualityPortfolio;
         saveQualityPortfolio = function() { _origSaveQualityPortfolio.apply(this, arguments); scheduleSyncToNetwork(); };
+
+        const _origSaveSlotPlan = saveSlotPlan;
+        saveSlotPlan = function() { _origSaveSlotPlan.apply(this, arguments); scheduleSyncToNetwork(); };
+
+        const _origSaveClosedOvens = saveClosedOvens;
+        saveClosedOvens = function() { _origSaveClosedOvens.apply(this, arguments); scheduleSyncToNetwork(); };
+
+        const _origSaveManualInsertedSlots = saveManualInsertedSlots;
+        saveManualInsertedSlots = function() { _origSaveManualInsertedSlots.apply(this, arguments); scheduleSyncToNetwork(); };
 
         let _selectedBackupFile = null;
 
@@ -12519,6 +12534,9 @@
 
             syncFromNetwork().then(() => {
                 loadPlannerSettings();
+                loadClosedOvens();
+                loadSlotPlan();
+                updateOvenToggleBar();
                 loadPendingOrders();
                 loadManualKmSlots();
                 loadManualInsertedSlots();
@@ -12526,6 +12544,7 @@
                 loadAnalysisPortfolio();
                 loadQualityPortfolio();
                 loadKmAnalysisSettings();
+                loadCustomerMaxLengths();
                 updatePortfolioDatalists();
                 renderQualityPortfolioList();
                 renderAnalysisPortfolioList();
