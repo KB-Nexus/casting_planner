@@ -446,15 +446,14 @@ async function checkForStartupUpdate() {
         } finally {
             autoUpdater.removeListener('download-progress', onProgress);
         }
-        // Tamamlandı — bar'ı %100'e getir, kısa mesaj göster, hemen kapat ve kur
+        // Tamamlandı — bar'ı %100'e getir, pencereyi açık bırak, hemen kur
+        // Pencereyi kapatmıyoruz: quitAndInstall app'i sonlandırınca otomatik kapanır
         if (!progressWindow.isDestroyed()) {
             await progressWindow.webContents.executeJavaScript(
                 `document.getElementById("bar").style.width="100%";` +
                 `document.getElementById("percent").textContent="100%";` +
-                `document.getElementById("status").textContent="Kurulum başlıyor…";`
+                `document.getElementById("status").textContent="Kurulum yapılıyor…";`
             ).catch(() => {});
-            await new Promise(r => setTimeout(r, 800));
-            progressWindow.close();
         }
         autoUpdater.quitAndInstall(true, true);
         return true;
