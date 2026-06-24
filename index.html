@@ -12301,7 +12301,7 @@
             if (data.lastModified) localStorage.setItem(LOCAL_LAST_MODIFIED_KEY, String(data.lastModified));
         }
 
-        async function syncFromNetwork({ silent = false, reloadUI = false } = {}) {
+        async function syncFromNetwork({ silent = false } = {}) {
             if (!window.networkStore) return;
             if (!silent) setNetworkStatus('warn', 'Bağlanıyor...');
             try {
@@ -12315,12 +12315,8 @@
                     return false;
                 }
                 if (result.data) {
-                    const prevTs = parseInt(localStorage.getItem(LOCAL_LAST_MODIFIED_KEY) || '0');
-                    const networkTs = result.data.lastModified || 0;
+                    // Startup: ağ tek kaynak, her zaman uygula
                     applyNetworkData(result.data);
-                    if (reloadUI && networkTs !== prevTs) {
-                        reloadAllFromStorage();
-                    }
                 }
                 setNetworkStatus('ok', 'Ağ bağlı');
                 return true;
@@ -12382,18 +12378,9 @@
             if (e.ctrlKey && e.key === '0') { e.preventDefault(); applyZoom(1); }
         });
 
-        // Periyodik ağ senkronizasyonu — 10 saniyede bir kontrol
-        let _periodicSyncTimer = null;
-        let _lastLocalWriteTs = 0;
-        function startPeriodicSync() {
-            if (_periodicSyncTimer) return;
-            _periodicSyncTimer = setInterval(() => {
-                // Aktif yazma varsa veya son yazmadan 2sn geçmediyse atla
-                if (networkSyncDebounceTimer) return;
-                if (Date.now() - _lastLocalWriteTs < 2000) return;
-                syncFromNetwork({ silent: true, reloadUI: true });
-            }, 10000);
-        }
+        // Polling yok — lock sistemi sayesinde iki PC aynı anda çalışamaz.
+        // Startup sync yeterli: PC açıldığında ağdan en güncel veriyi çeker.
+        function startPeriodicSync() { /* no-op */ }
 
         async function syncToNetwork() {
             if (!window.networkStore) return;

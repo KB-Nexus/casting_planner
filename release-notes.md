@@ -1,6 +1,5 @@
-Zoom (yakınlaştırma) kontrolü eklendi:
+Gereksiz periyodik polling kaldırıldı:
 
-- Ctrl+= veya Ctrl++ ile büyüt, Ctrl+- ile küçült, Ctrl+0 ile sıfırla.
-- Toolbar'da - %100 + göstergesi ile fare ile de ayarlanabilir.
-- Tercih kaydedilir; uygulamayı kapatsanız bile aynı zoom ile açılır.
-- Her monitörde bir kez ayarlamanız yeterli.
+- Lock sistemi iki PC'nin aynı anda çalışmasını zaten engeller.
+- Açılışta ağdan veri çekmek yeterli; 10 saniyelik polling gereksizdi.
+- Eklenen dökümlerin silinmesi sorunu tamamen ortadan kalktı.
