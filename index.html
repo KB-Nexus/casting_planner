@@ -12268,16 +12268,11 @@
             // Manuel yükleme (forceOrders) durumunda her zaman uygula.
             const networkIsNewer = forceOrders || networkTs >= localTs;
             if (data.settings && networkIsNewer) localStorage.setItem(STORAGE_KEY, JSON.stringify(data.settings));
-            if (data.orders && forceOrders) {
-                // Sadece kullanıcı "Kayıttan Yükle" butonuna basınca siparişleri ağdan yükle
-                localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(data.orders));
-            }
-            if (data.manualKmSlots && forceOrders) {
-                localStorage.setItem(MANUAL_SLOT_STORAGE_KEY, JSON.stringify(data.manualKmSlots));
-            }
-            if (data.manualInsertedSlots && forceOrders) localStorage.setItem(MANUAL_INSERTED_SLOTS_KEY, JSON.stringify(data.manualInsertedSlots));
-            if (data.slotPlan && forceOrders) localStorage.setItem(SLOT_PLAN_STORAGE_KEY, JSON.stringify(data.slotPlan));
-            if (data.closedOvens && forceOrders) localStorage.setItem(CLOSED_OVENS_STORAGE_KEY, JSON.stringify(data.closedOvens));
+            if (data.orders && networkIsNewer) localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(data.orders));
+            if (data.manualKmSlots && networkIsNewer) localStorage.setItem(MANUAL_SLOT_STORAGE_KEY, JSON.stringify(data.manualKmSlots));
+            if (data.manualInsertedSlots && networkIsNewer) localStorage.setItem(MANUAL_INSERTED_SLOTS_KEY, JSON.stringify(data.manualInsertedSlots));
+            if (data.slotPlan && networkIsNewer) localStorage.setItem(SLOT_PLAN_STORAGE_KEY, JSON.stringify(data.slotPlan));
+            if (data.closedOvens && networkIsNewer) localStorage.setItem(CLOSED_OVENS_STORAGE_KEY, JSON.stringify(data.closedOvens));
             if (data.completedCastings && networkIsNewer) localStorage.setItem(COMPLETED_CASTING_STORAGE_KEY, JSON.stringify(data.completedCastings));
             if (data.analysisPortfolio && networkIsNewer) localStorage.setItem(ANALYSIS_PORTFOLIO_STORAGE_KEY, JSON.stringify(data.analysisPortfolio));
             if (data.kmAnalysisSettings && networkIsNewer) localStorage.setItem(KM_ANALYSIS_STORAGE_KEY, JSON.stringify(data.kmAnalysisSettings));
@@ -12302,8 +12297,7 @@
                     return;
                 }
                 if (result.data) {
-                    // Açılışta ağ verisi her zaman uygulanır (lock sistemi eş zamanlı düzenlemeyi engeller)
-                    applyNetworkData(result.data, { forceOrders: true });
+                    applyNetworkData(result.data);
                 }
                 setNetworkStatus('ok', 'Ağ bağlı');
             } catch (e) {

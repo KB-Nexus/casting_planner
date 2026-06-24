@@ -1,5 +1,5 @@
-Diğer bilgisayarda plan tablosunun yanlış/eski görünmesi sorunu düzeltildi:
+Diğer bilgisayarda açılışta yanlış plan görünmesi sorunu kalıcı olarak düzeltildi:
 
-- Ocak zamanlamaları (slotPlan), kapalı ocaklar ve manuel eklenen slotlar artık ağa kaydediliyor ve diğer bilgisayara aktarılıyor.
-- Bu veriler daha önce yalnızca yerel olarak tutulduğundan diğer PC açıldığında farklı plan görünüyordu.
-- Ocak zamanı veya ocak durumu değiştirildiğinde ağ senkronizasyonu otomatik olarak tetikleniyor.
+- Ağ verisi yalnızca gerçekten daha yeniyse (zaman damgası karşılaştırması) yerel veriyi günceller.
+- Ocak zamanlamaları, kapalı ocaklar ve manuel slotlar artık ağa kaydediliyor ve PC'ler arasında senkronize ediliyor.
+- Yerel veri daha yeniyse (henüz ağa yazılamamışsa) ağ verisi yerel veriyi ezmez.
