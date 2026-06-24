@@ -12347,11 +12347,12 @@
         function startPeriodicSync() {
             if (_periodicSyncTimer) return;
             _periodicSyncTimer = setInterval(() => {
-                // Sadece bu PC son yazma yapan değilse ve aktif düzenleme yoksa çek
+                // Yazma debounce aktifken atla (300ms yazma penceresi)
+                // Diğer durumlarda her zaman kontrol et; wasNewer=false ise UI yenilenmez
                 if (!networkSyncDebounceTimer) {
                     syncFromNetwork({ silent: true, reloadUI: true });
                 }
-            }, 30000);
+            }, 10000);
         }
 
         async function syncToNetwork() {
@@ -12380,7 +12381,10 @@
         function scheduleSyncToNetwork() {
             localStorage.setItem(LOCAL_LAST_MODIFIED_KEY, String(Date.now()));
             if (networkSyncDebounceTimer) clearTimeout(networkSyncDebounceTimer);
-            networkSyncDebounceTimer = setTimeout(() => syncToNetwork(), 300);
+            networkSyncDebounceTimer = setTimeout(() => {
+                networkSyncDebounceTimer = null;
+                syncToNetwork();
+            }, 300);
             scheduleCloudPlanSync();
         }
 

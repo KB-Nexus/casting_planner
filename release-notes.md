@@ -1,5 +1,5 @@
-Gerçek zamanlı iki yönlü senkronizasyon eklendi:
+Otomatik senkronizasyon düzeltmesi:
 
-- Uygulama açıkken her 30 saniyede bir ağı kontrol eder.
-- Diğer PC'de yapılan değişiklikler otomatik olarak yansır, uygulamayı yeniden açmak gerekmez.
-- Düzenleme yapılırken polling bekletilir, veri çakışması olmaz.
+- Timer sıfırlanmama hatası giderildi; yazma sonrası polling artık engellenmez.
+- Kontrol aralığı 30 saniyeden 10 saniyeye düşürüldü.
+- Değişiklik yapıldıktan en fazla 10 saniye içinde diğer PC'ye yansır.
