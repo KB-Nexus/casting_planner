@@ -1,5 +1,5 @@
-Güncelleme artık tamamen sessiz:
+Güncelleme ekranı yeniden tasarlandı:
 
-- Yeni sürüm arka planda indirilir, onay penceresi çıkmaz.
+- Uygulama renk temasına uygun koyu ve modern tasarım.
+- Çerçevesiz, sürüklenir pencere.
 - Kurulum NSIS ekranı göstermeden sessizce tamamlanır.
-- Uygulama güncellendikten sonra otomatik yeniden açılır.

@@ -312,6 +312,55 @@ function formatReleaseNotes(releaseNotes) {
         .trim();
 }
 
+function createUpdatePromptWindow(version, notes) {
+    const win = new BrowserWindow({
+        width: 460, height: 340,
+        resizable: false, minimizable: false, maximizable: false,
+        frame: false, show: false,
+        title: 'Güncelleme',
+        icon: path.join(__dirname, 'icon.ico'),
+        backgroundColor: '#0f172a',
+        webPreferences: { nodeIntegration: false, contextIsolation: true },
+    });
+    const safeVersion = String(version).replace(/[<>&"']/g, '');
+    const safeNotes = String(notes).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;',"'":'&#39;','"':'&quot;'}[c]))
+        .replace(/•/g, '<span class="bullet">•</span>');
+    const html = `<!doctype html><html lang="tr"><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI",sans-serif;background:#0f172a;color:#e2e8f0;height:340px;display:flex;flex-direction:column;overflow:hidden;-webkit-app-region:drag}
+.header{background:linear-gradient(135deg,#0f766e,#0d9488);padding:20px 24px 18px;flex-shrink:0}
+.badge{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#99f6e4;margin-bottom:6px}
+.title{font-size:19px;font-weight:800;color:#fff;line-height:1.2}
+.version{font-size:12px;color:#ccfbf1;margin-top:4px;font-weight:500}
+.body{flex:1;padding:18px 24px;overflow-y:auto}
+.notes-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:8px}
+.notes{font-size:12.5px;color:#94a3b8;line-height:1.65;white-space:pre-wrap}
+.bullet{color:#14b8a6;margin-right:4px}
+.footer{padding:14px 24px;display:flex;gap:10px;justify-content:flex-end;background:#0f172a;border-top:1px solid #1e293b;flex-shrink:0;-webkit-app-region:no-drag}
+button{border:none;border-radius:8px;font-size:13px;font-weight:700;padding:9px 22px;cursor:pointer;transition:opacity .15s}
+.btn-update{background:linear-gradient(135deg,#0f766e,#0d9488);color:#fff}
+.btn-update:hover{opacity:.88}
+.btn-skip{background:#1e293b;color:#94a3b8}
+.btn-skip:hover{background:#273549}
+</style></head><body>
+<div class="header">
+  <div class="badge">Kenan Metal Döküm Planlayıcı</div>
+  <div class="title">Yeni sürüm hazır</div>
+  <div class="version">v${safeVersion} — mevcut: v${app.getVersion()}</div>
+</div>
+<div class="body">
+  <div class="notes-label">Bu sürümde neler değişti</div>
+  <div class="notes">${safeNotes}</div>
+</div>
+<div class="footer">
+  <button class="btn-skip" onclick="location.href='app://update-skip'">Şimdi değil</button>
+  <button class="btn-update" onclick="location.href='app://update-accept'">Güncelle ve yeniden başlat</button>
+</div></body></html>`;
+    win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    win.once('ready-to-show', () => win.show());
+    return win;
+}
+
 function createUpdateProgressWindow(version) {
     const win = new BrowserWindow({
         width: 470,
@@ -354,7 +403,6 @@ async function checkForStartupUpdate() {
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = false;
     let progressWindow = null;
-    let updateAccepted = false;
 
     try {
         const checkResult = await Promise.race([
@@ -363,25 +411,43 @@ async function checkForStartupUpdate() {
         ]);
         if (!checkResult || !checkResult.isUpdateAvailable) return false;
 
-        // Sessiz güncelleme: onay veya progress penceresi yok
-        // İndirme arka planda, kurulum sessiz (/S), ardından uygulama yeniden açılır
-        await autoUpdater.downloadUpdate();
-        autoUpdater.quitAndInstall(true, true); // isSilent=true, isForceRunAfter=true
+        const info = checkResult.updateInfo;
+        const notes = formatReleaseNotes(info.releaseNotes);
+
+        // Kullanıcıdan onay al — özel tasarımlı pencere
+        const accepted = await new Promise(resolve => {
+            const prompt = createUpdatePromptWindow(info.version, notes);
+            prompt.webContents.on('will-navigate', (e, url) => {
+                e.preventDefault();
+                prompt.destroy();
+                resolve(url.includes('update-accept'));
+            });
+            prompt.on('closed', () => resolve(false));
+        });
+        if (!accepted) return false;
+
+        // Sessiz indir + kur
+        progressWindow = createUpdateProgressWindow(info.version);
+        const onProgress = progress => {
+            const percent = Math.max(0, Math.min(100, Math.round(progress.percent || 0)));
+            if (!progressWindow.isDestroyed()) {
+                progressWindow.webContents.executeJavaScript(
+                    `document.getElementById("bar").style.width="${percent}%";document.getElementById("percent").textContent="${percent}%";`
+                ).catch(() => {});
+            }
+        };
+        autoUpdater.on('download-progress', onProgress);
+        try {
+            await autoUpdater.downloadUpdate();
+        } finally {
+            autoUpdater.removeListener('download-progress', onProgress);
+        }
+        if (!progressWindow.isDestroyed()) progressWindow.close();
+        autoUpdater.quitAndInstall(true, true);
         return true;
     } catch (error) {
         if (progressWindow && !progressWindow.isDestroyed()) progressWindow.destroy();
         console.warn('Açılış güncelleme kontrolü başarısız:', error && error.message);
-        if (updateAccepted) {
-            await dialog.showMessageBox({
-                type: 'warning',
-                title: 'Güncelleme tamamlanamadı',
-                message: 'Yeni sürüm şu anda indirilemedi.',
-                detail: 'Mevcut sürümle devam edebilirsiniz. Uygulama bir sonraki açılışta yeniden deneyecek.',
-                buttons: ['Uygulamayı aç'],
-                defaultId: 0,
-                noLink: true,
-            });
-        }
         return false;
     }
 }
