@@ -1,6 +1,6 @@
 {
   "name": "casting-planner",
-  "version": "1.4.9",
+  "version": "1.5.0",
   "description": "Kenan Metal Döküm Planlayıcı",
   "main": "main.js",
   "scripts": {

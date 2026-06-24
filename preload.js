@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webFrame } = require('electron');
 
 contextBridge.exposeInMainWorld('networkStore', {
     getAppVersion: () => ipcRenderer.invoke('app-version'),
@@ -11,4 +11,6 @@ contextBridge.exposeInMainWorld('networkStore', {
     uploadCloudPlan: (plan) => ipcRenderer.invoke('cloud-plan-upload', plan),
     openReportWindow: (html) => ipcRenderer.invoke('open-report-window', html),
     printCurrentWindow: () => ipcRenderer.invoke('print-current-window'),
+    setZoom: (factor) => webFrame.setZoomFactor(factor),
+    getZoom: () => webFrame.getZoomFactor(),
 });

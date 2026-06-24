@@ -4860,6 +4860,11 @@
                         <span class="ns-label" style="font-size:11px;font-weight:600;color:#334155;white-space:nowrap;">Başlatılıyor</span>
                     </div>
                     <button type="button" onclick="manualSyncFromNetwork()" title="Ağdan en son veriyi yükle">Kayıttan Yükle</button>
+                    <div style="display:flex;align-items:center;gap:2px;margin-left:4px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:2px 6px;" title="Yakınlaştırma (Ctrl+= / Ctrl+-)">
+                        <button type="button" onclick="adjustZoom(-0.1)" style="background:none;border:none;font-size:14px;font-weight:700;color:#475569;cursor:pointer;padding:0 3px;line-height:1;">−</button>
+                        <span id="zoomLabel" style="font-size:11px;font-weight:600;color:#334155;min-width:32px;text-align:center;">100%</span>
+                        <button type="button" onclick="adjustZoom(0.1)" style="background:none;border:none;font-size:14px;font-weight:700;color:#475569;cursor:pointer;padding:0 3px;line-height:1;">+</button>
+                    </div>
                     <div style="display:flex;align-items:center;gap:6px;margin-left:10px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:4px 10px;">
                         <span style="font-size:11px;font-weight:700;color:#334155;">Satır sayısı</span>
                         <button type="button" onclick="changeMaxSlots(-1)" style="all:unset;cursor:pointer;width:24px;height:24px;display:flex;align-items:center;justify-content:center;background:#e2e8f0;border-radius:5px;font-size:16px;font-weight:900;color:#334155;line-height:1;">−</button>
@@ -12347,6 +12352,36 @@
             updateStockNeedDashboard();
         }
 
+        // ── Zoom kontrolü ────────────────────────────────────────────────────────
+        const ZOOM_STORAGE_KEY = 'castingPlannerZoom';
+        const ZOOM_MIN = 0.5, ZOOM_MAX = 2.0, ZOOM_STEP = 0.1;
+
+        function applyZoom(factor) {
+            factor = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(factor * 10) / 10));
+            if (window.networkStore && window.networkStore.setZoom) {
+                window.networkStore.setZoom(factor);
+            }
+            localStorage.setItem(ZOOM_STORAGE_KEY, String(factor));
+            const label = document.getElementById('zoomLabel');
+            if (label) label.textContent = Math.round(factor * 100) + '%';
+        }
+
+        function adjustZoom(delta) {
+            const current = window.networkStore && window.networkStore.getZoom ? window.networkStore.getZoom() : 1;
+            applyZoom(current + delta);
+        }
+
+        function initZoom() {
+            const saved = parseFloat(localStorage.getItem(ZOOM_STORAGE_KEY) || '1');
+            applyZoom(isFinite(saved) ? saved : 1);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && (e.key === '=' || e.key === '+')) { e.preventDefault(); adjustZoom(ZOOM_STEP); }
+            if (e.ctrlKey && e.key === '-') { e.preventDefault(); adjustZoom(-ZOOM_STEP); }
+            if (e.ctrlKey && e.key === '0') { e.preventDefault(); applyZoom(1); }
+        });
+
         // Periyodik ağ senkronizasyonu — 10 saniyede bir kontrol
         let _periodicSyncTimer = null;
         let _lastLocalWriteTs = 0;
@@ -12585,6 +12620,7 @@
             updateStockNeedDashboard();
             initializeUndoHistory();
 
+            initZoom();
             syncFromNetwork().then(() => {
                 reloadAllFromStorage();
                 startPeriodicSync();
