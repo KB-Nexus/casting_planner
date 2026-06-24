@@ -6313,6 +6313,7 @@
 
         function saveCurrentPlanList() {
             localStorage.setItem(SAVED_PLAN_LIST_STORAGE_KEY, JSON.stringify(getCurrentPlanListSnapshot()));
+            scheduleSyncToNetwork();
             showAlert("Liste kaydedildi.", "success");
         }
 
@@ -6336,13 +6337,20 @@
                 if (!Number.isInteger(order.assignedSlot)) {
                     return;
                 }
+                const customer = upperText(order.customer || "");
+                const quality = upperText(order.quality || "");
+                const length = order.length || "";
+                // Gerçek içerik yoksa (sadece çap var) önizlemeye ekleme
+                if (!customer && !quality && !length) {
+                    return;
+                }
                 rowMap.set(order.assignedSlot, {
                     slot: order.assignedSlot,
                     lot: baseLot === null ? "" : baseLot + order.assignedSlot - 1,
-                    customer: upperText(order.customer || ""),
+                    customer,
                     diameter: order.diameter || "",
-                    length: order.length || "",
-                    quality: upperText(order.quality || ""),
+                    length,
+                    quality,
                     analysis: order.customAnalysis || order.analysis || "",
                     note: order.note || ""
                 });
@@ -12206,6 +12214,7 @@
                 customerMaxLengths: JSON.parse(localStorage.getItem(CUSTOMER_MAX_LENGTH_STORAGE_KEY) || "{}"),
                 qualityPortfolio: JSON.parse(localStorage.getItem(QUALITY_PORTFOLIO_STORAGE_KEY) || "[]"),
                 deletedDefaults: JSON.parse(localStorage.getItem(DELETED_DEFAULTS_KEY) || "[]"),
+                savedPlanList: JSON.parse(localStorage.getItem(SAVED_PLAN_LIST_STORAGE_KEY) || "null"),
                 lastModified: ts,
             };
         }
@@ -12283,6 +12292,7 @@
             if (data.customerMaxLengths) localStorage.setItem(CUSTOMER_MAX_LENGTH_STORAGE_KEY, JSON.stringify(data.customerMaxLengths));
             if (data.qualityPortfolio) localStorage.setItem(QUALITY_PORTFOLIO_STORAGE_KEY, JSON.stringify(data.qualityPortfolio));
             if (data.deletedDefaults) localStorage.setItem(DELETED_DEFAULTS_KEY, JSON.stringify(data.deletedDefaults));
+            if (data.savedPlanList) localStorage.setItem(SAVED_PLAN_LIST_STORAGE_KEY, JSON.stringify(data.savedPlanList));
             if (data.lastModified) localStorage.setItem(LOCAL_LAST_MODIFIED_KEY, String(data.lastModified));
         }
 
