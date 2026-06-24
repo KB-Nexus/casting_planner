@@ -428,25 +428,15 @@ async function checkForStartupUpdate() {
         const info = checkResult.updateInfo;
         const notes = formatReleaseNotes(info.releaseNotes);
 
-        // Kullanıcıdan onay al — özel tasarımlı pencere
-        const accepted = await new Promise(resolve => {
-            const prompt = createUpdatePromptWindow(info.version, notes);
-            prompt.webContents.on('will-navigate', (e, url) => {
-                e.preventDefault();
-                prompt.destroy();
-                resolve(url.includes('update-accept'));
-            });
-            prompt.on('closed', () => resolve(false));
-        });
-        if (!accepted) return false;
-
-        // Sessiz indir + kur
+        // Onay yok — direkt progress ekranı aç ve indir
         progressWindow = createUpdateProgressWindow(info.version, notes);
         const onProgress = progress => {
             const percent = Math.max(0, Math.min(100, Math.round(progress.percent || 0)));
             if (!progressWindow.isDestroyed()) {
                 progressWindow.webContents.executeJavaScript(
-                    `document.getElementById("bar").style.width="${percent}%";document.getElementById("percent").textContent="${percent}%";`
+                    `document.getElementById("bar").style.width="${percent}%";` +
+                    `document.getElementById("percent").textContent="${percent}%";` +
+                    `document.getElementById("status").textContent="İndiriliyor… ${percent}%";`
                 ).catch(() => {});
             }
         };
@@ -456,7 +446,14 @@ async function checkForStartupUpdate() {
         } finally {
             autoUpdater.removeListener('download-progress', onProgress);
         }
-        if (!progressWindow.isDestroyed()) progressWindow.close();
+        // Tamamlandı — bar'ı %100'e getir, kısa mesaj göster
+        if (!progressWindow.isDestroyed()) {
+            await progressWindow.webContents.executeJavaScript(
+                `document.getElementById("bar").style.width="100%";` +
+                `document.getElementById("percent").textContent="100%";` +
+                `document.getElementById("status").textContent="Kurulum yapılıyor, uygulama yeniden başlıyor…";`
+            ).catch(() => {});
+        }
         autoUpdater.quitAndInstall(true, true);
         return true;
     } catch (error) {

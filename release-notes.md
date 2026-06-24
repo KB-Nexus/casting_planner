@@ -1,5 +1,5 @@
-İndirme ekranı yeniden tasarlandı:
+Güncelleme artık otomatik: uygulama açılırken güncelleme varsa seçenek sunmadan indirir ve yükler.
 
-- Menü çubuğu kaldırıldı, çerçevesiz koyu tema uygulandı.
-- Hangi sürüme geçildiği ve değişiklik notları gösteriliyor.
-- Gradient progress bar ile indirme durumu takip edilebiliyor.
+- "Güncelle / Şimdi değil" ekranı kaldırıldı.
+- İndirme ilerlemesi progress bar ile gösteriliyor.
+- Kurulum tamamlanınca uygulama otomatik yeniden başlıyor.
