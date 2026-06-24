@@ -363,38 +363,10 @@ async function checkForStartupUpdate() {
         ]);
         if (!checkResult || !checkResult.isUpdateAvailable) return false;
 
-        const info = checkResult.updateInfo;
-        const answer = await dialog.showMessageBox({
-            type: 'info',
-            title: 'Yeni sürüm hazır',
-            message: `Döküm Planlayıcı ${info.version} sürümü hazır`,
-            detail: `Mevcut sürüm: ${app.getVersion()}\n\nBu güncellemede neler değişti?\n\n${formatReleaseNotes(info.releaseNotes)}\n\nGüncelleme tamamlandığında uygulama otomatik olarak yeniden açılacak.`,
-            buttons: ['Güncelle ve yeniden başlat', 'Şimdi değil'],
-            defaultId: 0,
-            cancelId: 1,
-            noLink: true,
-        });
-        if (answer.response !== 0) return false;
-        updateAccepted = true;
-
-        progressWindow = createUpdateProgressWindow(info.version);
-        const onProgress = progress => {
-            const percent = Math.max(0, Math.min(100, Math.round(progress.percent || 0)));
-            if (!progressWindow.isDestroyed()) {
-                progressWindow.webContents.executeJavaScript(
-                    `document.getElementById("bar").style.width="${percent}%";document.getElementById("percent").textContent="${percent}%";`
-                ).catch(() => {});
-            }
-        };
-        autoUpdater.on('download-progress', onProgress);
-        try {
-            await autoUpdater.downloadUpdate();
-        } finally {
-            autoUpdater.removeListener('download-progress', onProgress);
-        }
-        if (!progressWindow.isDestroyed()) progressWindow.close();
-        progressWindow = null;
-        autoUpdater.quitAndInstall(false, true);
+        // Sessiz güncelleme: onay veya progress penceresi yok
+        // İndirme arka planda, kurulum sessiz (/S), ardından uygulama yeniden açılır
+        await autoUpdater.downloadUpdate();
+        autoUpdater.quitAndInstall(true, true); // isSilent=true, isForceRunAfter=true
         return true;
     } catch (error) {
         if (progressWindow && !progressWindow.isDestroyed()) progressWindow.destroy();
