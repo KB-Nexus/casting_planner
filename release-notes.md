@@ -1,4 +1,5 @@
-Yedek dosyası saatlerinin UTC yerine yerel saat gösterilmesi düzeltildi:
+Gerçek zamanlı iki yönlü senkronizasyon eklendi:
 
-- "Kayıttan Yükle" listesinde artık Türkiye yerel saati (UTC+3) görünür.
-- Yanlış saat gösterimi nedeniyle eski yedek seçilmesi riski ortadan kalktı.
+- Uygulama açıkken her 30 saniyede bir ağı kontrol eder.
+- Diğer PC'de yapılan değişiklikler otomatik olarak yansır, uygulamayı yeniden açmak gerekmez.
+- Düzenleme yapılırken polling bekletilir, veri çakışması olmaz.

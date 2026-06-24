@@ -6352,16 +6352,23 @@
                 if (!Number.isInteger(slotNumber)) {
                     return;
                 }
-                const existing = rowMap.get(slotNumber) || {};
+                const existing = rowMap.get(slotNumber);
+                const customer = existing ? existing.customer : (slot.isKm ? "KM" : (slot.customer || ""));
+                const quality = existing ? existing.quality : upperText(slot.quality || "");
+                const length = existing ? existing.length : (slot.length || "");
+                // Gerçek içerik yoksa (sadece çap var) önizlemeye ekleme
+                if (!existing && !customer && !quality && !length) {
+                    return;
+                }
                 rowMap.set(slotNumber, {
                     slot: slotNumber,
                     lot: baseLot === null ? "" : baseLot + slotNumber - 1,
-                    customer: existing.customer || (slot.isKm ? "KM" : ""),
-                    diameter: existing.diameter || slot.diameter || "",
-                    length: existing.length || slot.length || "",
-                    quality: existing.quality || upperText(slot.quality || ""),
-                    analysis: existing.analysis || slot.analysis || "",
-                    note: existing.note || slot.note || ""
+                    customer,
+                    diameter: (existing && existing.diameter) || slot.diameter || "",
+                    length,
+                    quality,
+                    analysis: (existing && existing.analysis) || slot.analysis || "",
+                    note: (existing && existing.note) || slot.note || ""
                 });
             });
             return Array.from(rowMap.values()).sort((a, b) => a.slot - b.slot);
@@ -12283,26 +12290,68 @@
             if (networkIsNewer && networkTs) localStorage.setItem(LOCAL_LAST_MODIFIED_KEY, String(networkTs));
         }
 
-        async function syncFromNetwork() {
+        async function syncFromNetwork({ silent = false, reloadUI = false } = {}) {
             if (!window.networkStore) return;
-            setNetworkStatus('warn', 'Bağlanıyor...');
+            if (!silent) setNetworkStatus('warn', 'Bağlanıyor...');
             try {
                 const result = await window.networkStore.load();
                 if (!result.ok) {
                     if (result.reason === 'network_unavailable') {
                         setNetworkStatus('idle', 'Ağ yok – yerel');
                     } else {
-                        setNetworkStatus('error', 'Okuma hatası');
+                        if (!silent) setNetworkStatus('error', 'Okuma hatası');
                     }
-                    return;
+                    return false;
                 }
                 if (result.data) {
+                    const localTs = parseInt(localStorage.getItem(LOCAL_LAST_MODIFIED_KEY) || '0');
+                    const networkTs = result.data.lastModified || 0;
+                    const wasNewer = networkTs > localTs;
                     applyNetworkData(result.data);
+                    if (reloadUI && wasNewer) {
+                        reloadAllFromStorage();
+                    }
                 }
                 setNetworkStatus('ok', 'Ağ bağlı');
+                return true;
             } catch (e) {
-                setNetworkStatus('error', 'Bağlantı hatası');
+                if (!silent) setNetworkStatus('error', 'Bağlantı hatası');
+                return false;
             }
+        }
+
+        function reloadAllFromStorage() {
+            loadPlannerSettings();
+            loadClosedOvens();
+            loadSlotPlan();
+            updateOvenToggleBar();
+            loadPendingOrders();
+            loadManualKmSlots();
+            loadManualInsertedSlots();
+            loadCompletedCastings();
+            loadAnalysisPortfolio();
+            loadQualityPortfolio();
+            loadKmAnalysisSettings();
+            loadCustomerMaxLengths();
+            updatePortfolioDatalists();
+            renderQualityPortfolioList();
+            renderAnalysisPortfolioList();
+            updateNewOrderAnalysisOptions();
+            syncAllTimePartsFromHidden();
+            generatePlan();
+            updateStockNeedDashboard();
+        }
+
+        // Periyodik ağ senkronizasyonu — 30 saniyede bir kontrol
+        let _periodicSyncTimer = null;
+        function startPeriodicSync() {
+            if (_periodicSyncTimer) return;
+            _periodicSyncTimer = setInterval(() => {
+                // Sadece bu PC son yazma yapan değilse ve aktif düzenleme yoksa çek
+                if (!networkSyncDebounceTimer) {
+                    syncFromNetwork({ silent: true, reloadUI: true });
+                }
+            }, 30000);
         }
 
         async function syncToNetwork() {
@@ -12527,24 +12576,8 @@
             initializeUndoHistory();
 
             syncFromNetwork().then(() => {
-                loadPlannerSettings();
-                loadClosedOvens();
-                loadSlotPlan();
-                updateOvenToggleBar();
-                loadPendingOrders();
-                loadManualKmSlots();
-                loadManualInsertedSlots();
-                loadCompletedCastings();
-                loadAnalysisPortfolio();
-                loadQualityPortfolio();
-                loadKmAnalysisSettings();
-                loadCustomerMaxLengths();
-                updatePortfolioDatalists();
-                renderQualityPortfolioList();
-                renderAnalysisPortfolioList();
-                updateNewOrderAnalysisOptions();
-                syncAllTimePartsFromHidden();
-                generatePlan();
+                reloadAllFromStorage();
+                startPeriodicSync();
             });
 
             const tc = document.querySelector('.table-container');
