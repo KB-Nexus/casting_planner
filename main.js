@@ -361,37 +361,51 @@ button{border:none;border-radius:8px;font-size:13px;font-weight:700;padding:9px 
     return win;
 }
 
-function createUpdateProgressWindow(version) {
+function createUpdateProgressWindow(version, notes) {
     const win = new BrowserWindow({
-        width: 470,
-        height: 210,
-        resizable: false,
-        minimizable: false,
-        maximizable: false,
-        closable: false,
-        show: false,
+        width: 460, height: 340,
+        resizable: false, minimizable: false, maximizable: false,
+        closable: false, frame: false, show: false,
         title: 'Döküm Planlayıcı Güncelleniyor',
-        icon: path.join(__dirname, 'kenan-metal-logo.png'),
-        backgroundColor: '#f3f7f8',
-        webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
-        },
+        icon: path.join(__dirname, 'icon.ico'),
+        backgroundColor: '#0f172a',
+        webPreferences: { nodeIntegration: false, contextIsolation: true },
     });
     const safeVersion = String(version).replace(/[<>&"']/g, '');
-    const html = `<!doctype html><html lang="tr"><head><meta charset="utf-8">
-        <meta name="viewport" content="width=device-width,initial-scale=1">
-        <style>
-        *{box-sizing:border-box}body{margin:0;background:#f3f7f8;color:#16242b;font:14px "Segoe UI",sans-serif;padding:28px}
-        .brand{color:#2f6f65;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
-        h1{font-size:21px;margin:6px 0 8px}.status{color:#52646d;margin-bottom:18px}
-        .track{height:12px;background:#dce7e9;border-radius:99px;overflow:hidden}.bar{height:100%;width:3%;background:#2f6f65;transition:width .2s}
-        .foot{display:flex;justify-content:space-between;color:#60737c;font-size:12px;margin-top:8px}
-        </style></head><body><div class="brand">Kenan Metal</div>
-        <h1>${safeVersion} sürümü indiriliyor</h1>
-        <div class="status" id="status">Lütfen bekleyin; uygulama birazdan yeniden başlayacak.</div>
-        <div class="track"><div class="bar" id="bar"></div></div>
-        <div class="foot"><span>Güvenli güncelleme</span><b id="percent">0%</b></div></body></html>`;
+    const safeNotes = String(notes || '').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))
+        .replace(/•/g, '<span class="bullet">•</span>');
+    const html = `<!doctype html><html lang="tr"><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI",sans-serif;background:#0f172a;color:#e2e8f0;height:340px;display:flex;flex-direction:column;overflow:hidden;-webkit-app-region:drag}
+.header{background:linear-gradient(135deg,#0f766e,#0d9488);padding:20px 24px 18px;flex-shrink:0}
+.badge{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#99f6e4;margin-bottom:6px}
+.title{font-size:19px;font-weight:800;color:#fff;line-height:1.2}
+.version{font-size:12px;color:#ccfbf1;margin-top:4px;font-weight:500}
+.body{flex:1;padding:16px 24px 12px;overflow-y:auto}
+.notes-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:8px}
+.notes{font-size:12.5px;color:#94a3b8;line-height:1.65;white-space:pre-wrap}
+.bullet{color:#14b8a6;margin-right:4px}
+.footer{padding:14px 24px 16px;background:#0f172a;border-top:1px solid #1e293b;flex-shrink:0}
+.status{font-size:12px;color:#64748b;margin-bottom:10px}
+.track{height:6px;background:#1e293b;border-radius:99px;overflow:hidden}
+.bar{height:100%;width:2%;background:linear-gradient(90deg,#0f766e,#14b8a6);border-radius:99px;transition:width .3s ease}
+.foot{display:flex;justify-content:space-between;color:#475569;font-size:11px;margin-top:7px}
+</style></head><body>
+<div class="header">
+  <div class="badge">Kenan Metal Döküm Planlayıcı</div>
+  <div class="title">Güncelleme indiriliyor…</div>
+  <div class="version">v${safeVersion} yükleniyor — lütfen bekleyin</div>
+</div>
+<div class="body">
+  <div class="notes-label">Bu sürümde neler değişti</div>
+  <div class="notes">${safeNotes}</div>
+</div>
+<div class="footer">
+  <div class="status" id="status">İndirme devam ediyor, uygulama birazdan yeniden başlayacak…</div>
+  <div class="track"><div class="bar" id="bar"></div></div>
+  <div class="foot"><span>Güvenli güncelleme</span><b id="percent">0%</b></div>
+</div>
+</body></html>`;
     win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
     win.once('ready-to-show', () => win.show());
     return win;
@@ -427,7 +441,7 @@ async function checkForStartupUpdate() {
         if (!accepted) return false;
 
         // Sessiz indir + kur
-        progressWindow = createUpdateProgressWindow(info.version);
+        progressWindow = createUpdateProgressWindow(info.version, notes);
         const onProgress = progress => {
             const percent = Math.max(0, Math.min(100, Math.round(progress.percent || 0)));
             if (!progressWindow.isDestroyed()) {

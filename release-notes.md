@@ -1,5 +1,5 @@
-Güncelleme ekranı yeniden tasarlandı:
+İndirme ekranı yeniden tasarlandı:
 
-- Uygulama renk temasına uygun koyu ve modern tasarım.
-- Çerçevesiz, sürüklenir pencere.
-- Kurulum NSIS ekranı göstermeden sessizce tamamlanır.
+- Menü çubuğu kaldırıldı, çerçevesiz koyu tema uygulandı.
+- Hangi sürüme geçildiği ve değişiklik notları gösteriliyor.
+- Gradient progress bar ile indirme durumu takip edilebiliyor.
