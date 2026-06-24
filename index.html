@@ -35,7 +35,7 @@
             max-width: none;
             margin: 0 auto;
             display: grid;
-            grid-template-columns: 360px minmax(0, 1fr);
+            grid-template-columns: 420px minmax(0, 1fr);
             gap: 16px;
             min-height: 100vh;
             padding: 20px;
@@ -370,6 +370,14 @@
 
         .right-panel #stockDashboard {
             width: 285px;
+        }
+
+        .panel > .stock-dashboard-outer {
+            grid-row: unset;
+        }
+
+        .panel > .stock-dashboard-outer > .stock-dashboard {
+            width: 100%;
         }
 
         #stockExtraControls {
@@ -1722,6 +1730,9 @@
             text-align: center;
             width: 70px;
         }
+        .customer-length-field input::-webkit-inner-spin-button,
+        .customer-length-field input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .customer-length-field input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
         .customer-card-delete {
             position: absolute;
@@ -2341,16 +2352,16 @@
 
         th:nth-child(11),
         td:nth-child(11) {
-            width: 92px;
+            width: 128px;
             text-align: center;
         }
 
         th:nth-child(12),
         td:nth-child(12) {
-            width: 48px;
+            width: 60px;
             text-align: center;
-            padding-left: 4px;
-            padding-right: 4px;
+            padding-left: 8px;
+            padding-right: 8px;
         }
 
         .slot-cell {
@@ -2596,7 +2607,9 @@
             color: #111827 !important;
             border: 1px solid #94a3b8;
             border-radius: 4px;
-            width: 104px;
+            display: block;
+            max-width: 104px;
+            width: 100%;
         }
         .slot-date-input:disabled,
         .slot-time-input:disabled,
@@ -2606,13 +2619,28 @@
             opacity: 1;
         }
         .slot-confirm-btn {
-            padding: 2px 8px; font-size: 13px; font-weight: bold;
+            align-items: center;
+            display: inline-flex;
+            height: 34px;
+            justify-content: center;
+            max-height: 34px;
+            min-height: 34px;
+            padding: 0;
+            font-size: 15px;
+            font-weight: bold;
             background: #22c55e; color: #fff; border: none; border-radius: 4px;
             cursor: pointer;
+            width: 34px;
         }
         .slot-confirm-btn:hover { background: #16a34a; }
-        .slot-confirm-cell { text-align: center; }
-        .slot-oven-cell { white-space: nowrap; }
+        .slot-confirm-cell {
+            overflow: hidden;
+            text-align: center;
+        }
+        .slot-oven-cell {
+            overflow: hidden;
+            white-space: nowrap;
+        }
         .row-drop-target td { outline: 2px solid #3b82f6; outline-offset: -2px; background: rgba(59,130,246,0.08) !important; }
 
         .casting-own {
@@ -3236,6 +3264,1112 @@
         #backupModalLoad:disabled { background:#94a3b8; cursor:default; }
         #backupModalCancel { background:#e2e8f0; color:#334155; }
     </style>
+    <style>
+        /* ── Customer Drawer ─────────────────────────────────── */
+        #customerDrawerOverlay {
+            background: rgba(0,0,0,0.45);
+            bottom: 0; left: 0; position: fixed; right: 0; top: 0;
+            z-index: 900;
+        }
+        .customer-drawer {
+            background: #f8fafc;
+            border-left: 1px solid #d1d5db;
+            bottom: 0;
+            box-shadow: -8px 0 32px rgba(15,23,42,0.18);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            right: 0; top: 0;
+            transform: translateX(100%);
+            transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+            width: min(680px, 62vw);
+            z-index: 901;
+        }
+        .customer-drawer.open {
+            transform: translateX(0);
+        }
+        .customer-drawer-header {
+            align-items: center;
+            background: #101820;
+            color: #fff;
+            display: flex;
+            flex-shrink: 0;
+            justify-content: space-between;
+            padding: 14px 20px;
+        }
+        .customer-drawer-title {
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: 0.3px;
+        }
+        .customer-drawer-close {
+            background: rgba(255,255,255,0.12);
+            border: 0;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1;
+            padding: 6px 10px;
+            transition: background 0.15s;
+        }
+        .customer-drawer-close:hover { background: rgba(255,255,255,0.22); }
+        .customer-drawer-body {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding: 0;
+        }
+        .customer-drawer-body .analysis-portfolio-list {
+            max-height: none;
+        }
+        .open-customer-drawer-btn {
+            background: #101820;
+            border: 0;
+            border-radius: 10px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 800;
+            padding: 10px 18px;
+            width: 100%;
+        }
+        .open-customer-drawer-btn:hover { background: #1e293b; }
+
+        .app-version-badge {
+            background: #e6f2ef;
+            border: 1px solid #b8d8d2;
+            border-radius: 999px;
+            color: #245c54;
+            display: inline-flex;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.2px;
+            margin-left: 8px;
+            padding: 4px 9px;
+            white-space: nowrap;
+        }
+    </style>
+
+    <!-- ╔══════════════════════════════════════════════════════════╗
+         ║  DEVRİMSEL TASARIM KATMANI — bu bloğu silince geri alınır ║
+         ╚══════════════════════════════════════════════════════════╝ -->
+    <style id="revolution-layer">
+
+    /* ════════════════════════════════════════════════════════════
+       1. SAYFA & TEMEL
+    ════════════════════════════════════════════════════════════ */
+    html, body {
+        background: #0b1623 !important;
+    }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", sans-serif !important;
+        -webkit-font-smoothing: antialiased !important;
+        letter-spacing: 0.15px !important;
+        color: #1e293b !important;
+    }
+    .container {
+        padding: 10px !important;
+        gap: 10px !important;
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       2. SOL PANEL — KOYU SIDEBAR
+    ════════════════════════════════════════════════════════════ */
+    .container > .panel {
+        background: linear-gradient(175deg, #0e1d2e 0%, #091422 100%) !important;
+        border: 1px solid rgba(20,184,166,0.13) !important;
+        border-top: 2px solid rgba(20,184,166,0.35) !important;
+        border-radius: 18px !important;
+        box-shadow:
+            0 0 0 1px rgba(0,0,0,0.5),
+            0 20px 60px rgba(0,0,0,0.45),
+            inset 0 1px 0 rgba(20,184,166,0.08) !important;
+        padding: 18px !important;
+    }
+
+    /* Sol panel başlık */
+    .container > .panel h2 {
+        font-size: 10px !important;
+        font-weight: 900 !important;
+        letter-spacing: 2px !important;
+        text-transform: uppercase !important;
+        color: #14b8a6 !important;
+        border-bottom: 1px solid rgba(20,184,166,0.13) !important;
+        padding-bottom: 13px !important;
+        margin-bottom: 14px !important;
+    }
+
+    /* Versiyon rozeti */
+    .app-version-badge {
+        background: rgba(20,184,166,0.1) !important;
+        border: 1px solid rgba(20,184,166,0.22) !important;
+        color: #5eead4 !important;
+        border-radius: 999px !important;
+        font-size: 10px !important;
+        font-weight: 700 !important;
+        padding: 2px 8px !important;
+        letter-spacing: 0.3px !important;
+    }
+
+    /* Temizle butonu */
+    #clearStockBtn {
+        background: rgba(239,68,68,0.08) !important;
+        border: 1px solid rgba(239,68,68,0.2) !important;
+        color: #f87171 !important;
+        border-radius: 8px !important;
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        box-shadow: none !important;
+        transform: none !important;
+        min-height: unset !important;
+        padding: 4px 10px !important;
+    }
+    #clearStockBtn:hover {
+        background: rgba(239,68,68,0.15) !important;
+        border-color: rgba(239,68,68,0.35) !important;
+        box-shadow: none !important;
+        transform: none !important;
+    }
+
+    /* ── Stok kartları (koyu panel içi) ────────────────────── */
+    .container > .panel .stock-item {
+        background: rgba(255,255,255,0.03) !important;
+        border: 1px solid rgba(20,184,166,0.12) !important;
+        border-radius: 10px !important;
+        margin-bottom: 5px !important;
+        overflow: hidden !important;
+        transition: background 0.2s, border-color 0.2s !important;
+        box-shadow: none !important;
+    }
+    .container > .panel .stock-item:hover {
+        background: rgba(20,184,166,0.055) !important;
+        border-color: rgba(20,184,166,0.28) !important;
+        box-shadow: 0 0 0 1px rgba(20,184,166,0.12) !important;
+    }
+    .container > .panel .stock-item-header {
+        background: rgba(20,184,166,0.05) !important;
+        border-bottom: 1px solid rgba(20,184,166,0.1) !important;
+        padding: 5px 10px !important;
+    }
+    .container > .panel .stock-item-badge {
+        background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%) !important;
+        border-radius: 5px !important;
+        font-size: 10.5px !important;
+        font-weight: 800 !important;
+        padding: 2px 8px !important;
+        box-shadow: 0 1px 5px rgba(20,184,166,0.3) !important;
+        letter-spacing: 0.3px !important;
+    }
+    .container > .panel .stock-item-label {
+        color: #7ab4c5 !important;
+        font-size: 10px !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.5px !important;
+    }
+    .container > .panel .stock-kg-field {
+        border-right-color: rgba(255,255,255,0.06) !important;
+        padding: 5px 8px !important;
+        gap: 2px !important;
+    }
+    .container > .panel .stock-kg-field-label {
+        color: #5e96aa !important;
+        font-size: 9px !important;
+        font-weight: 800 !important;
+        letter-spacing: 1px !important;
+        text-transform: uppercase !important;
+    }
+    .container > .panel .stock-kg-field input {
+        color: #a8ddd7 !important;
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        border-bottom-color: rgba(255,255,255,0.1) !important;
+        background: transparent !important;
+    }
+    .container > .panel .stock-kg-field input:focus {
+        border-bottom-color: #14b8a6 !important;
+        color: #ccfbf1 !important;
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
+    /* ── Ayarlar kartı ──────────────────────────────────────── */
+    .settings-card {
+        background: linear-gradient(150deg, #07111d 0%, #040d16 100%) !important;
+        border: 1px solid rgba(20,184,166,0.14) !important;
+        border-top: 1px solid rgba(20,184,166,0.22) !important;
+        border-radius: 14px !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.04),
+            0 4px 20px rgba(0,0,0,0.3) !important;
+        padding: 14px !important;
+        margin: 12px 0 !important;
+    }
+    .settings-card strong {
+        color: #14b8a6 !important;
+        font-size: 9px !important;
+        letter-spacing: 1.6px !important;
+        text-transform: uppercase !important;
+        font-weight: 900 !important;
+    }
+    .compact-field label {
+        color: #3d5f74 !important;
+        font-size: 10px !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.5px !important;
+        text-transform: uppercase !important;
+    }
+    .compact-field input,
+    .compact-field select {
+        background: rgba(255,255,255,0.05) !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+        border-radius: 8px !important;
+        color: #94c9c3 !important;
+        font-size: 13px !important;
+        font-weight: 700 !important;
+    }
+    .compact-field input:focus,
+    .compact-field select:focus {
+        border-color: rgba(20,184,166,0.5) !important;
+        box-shadow: 0 0 0 3px rgba(20,184,166,0.08) !important;
+        background: rgba(20,184,166,0.07) !important;
+        color: #ccfbf1 !important;
+        outline: none !important;
+    }
+
+    /* ── Sol panel inline kutuları (günlük kullanım) ─────── */
+    .container > .panel > div[style*="background:#f0fdf4"],
+    .container > .panel > div[style*="background: #f0fdf4"] {
+        background: rgba(20,184,166,0.06) !important;
+        border: 1px solid rgba(20,184,166,0.16) !important;
+        border-radius: 12px !important;
+    }
+    .container > .panel > div[style*="background:#f0fdf4"] > div[style*="font-size:11px"] {
+        color: #5eead4 !important;
+        font-weight: 800 !important;
+        font-size: 10px !important;
+        letter-spacing: 1.2px !important;
+        text-transform: uppercase !important;
+    }
+    .container > .panel > div[style*="background:#f0fdf4"] > div > div {
+        background: rgba(255,255,255,0.04) !important;
+        border: 1px solid rgba(20,184,166,0.14) !important;
+        border-radius: 8px !important;
+    }
+    .container > .panel > div[style*="background:#f0fdf4"] input {
+        background: rgba(20,184,166,0.09) !important;
+        border: 1px solid rgba(20,184,166,0.22) !important;
+        color: #7dd8d0 !important;
+        border-radius: 5px !important;
+    }
+    .container > .panel > div[style*="background:#f0fdf4"] span {
+        color: #7ab4c5 !important;
+    }
+    /* Günlük kullanım label/checkbox yazıları */
+    .container > .panel > div[style*="background:#f0fdf4"] label {
+        color: #7ab4c5 !important;
+        font-size: 11px !important;
+    }
+
+    /* ── Stok dashboard'ları ────────────────────────────────── */
+    /* Kutucuk outer wrapper'a taşındı, -0+ butonları da kapsıyor */
+    .stock-dashboard-outer {
+        background: linear-gradient(150deg, #081320 0%, #050e1a 100%) !important;
+        border: 1px solid rgba(20,184,166,0.12) !important;
+        border-top: 2px solid rgba(20,184,166,0.25) !important;
+        border-radius: 14px !important;
+        box-shadow:
+            0 8px 28px rgba(0,0,0,0.3),
+            inset 0 1px 0 rgba(255,255,255,0.04) !important;
+        padding: 13px 13px 32px 13px !important;
+        align-items: flex-start !important;
+        position: relative !important;
+    }
+    .stock-dashboard-outer > .stock-copy-button {
+        position: absolute !important;
+        bottom: 8px !important;
+        right: 8px !important;
+        margin: 0 !important;
+    }
+    .stock-dashboard {
+        background: transparent !important;
+        border: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+    }
+    .stock-dashboard-title {
+        color: #14b8a6 !important;
+        font-size: 9px !important;
+        font-weight: 900 !important;
+        letter-spacing: 1.8px !important;
+        text-transform: uppercase !important;
+    }
+    .stock-base-time label {
+        color: #2e4a5a !important;
+        font-size: 10px !important;
+        font-weight: 700 !important;
+    }
+    .stock-base-time input,
+    .stock-base-time select {
+        background: rgba(255,255,255,0.06) !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+        border-radius: 6px !important;
+        color: #7dd8d0 !important;
+        font-size: 11px !important;
+    }
+    .stock-dashboard-row span { color: #6a9aaa !important; }
+    .stock-dashboard-row strong { color: #8dc8d6 !important; }
+    .stock-dashboard-row.is-warning strong,
+    .stock-dashboard-row.is-warning span { color: #fbbf24 !important; }
+    .stock-dashboard-row.is-danger strong,
+    .stock-dashboard-row.is-danger span { color: #f87171 !important; }
+    .stock-dashboard-row.is-good b { color: #34d399 !important; }
+    .stock-extra-counter {
+        background: rgba(255,255,255,0.06) !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+        border-radius: 8px !important;
+    }
+    .stock-copy-button {
+        background: rgba(255,255,255,0.05) !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+        border-radius: 6px !important;
+        color: #5eead4 !important;
+        box-shadow: none !important;
+        transform: none !important;
+    }
+    .stock-copy-button:hover {
+        background: rgba(20,184,166,0.14) !important;
+        border-color: rgba(20,184,166,0.3) !important;
+        box-shadow: none !important;
+        transform: none !important;
+    }
+    .left-slot-stock {
+        background: linear-gradient(150deg, #081320 0%, #050e1a 100%) !important;
+        border: 1px solid rgba(20,184,166,0.12) !important;
+        border-top: 2px solid rgba(20,184,166,0.2) !important;
+        border-radius: 14px !important;
+        margin-top: 10px !important;
+    }
+    .stock-sim-row strong { color: #ccfbf1 !important; }
+    .stock-sim-row span { color: #486070 !important; }
+    .stock-sim-row.is-warning strong,
+    .stock-sim-row.is-warning span { color: #fbbf24 !important; }
+    .stock-sim-row.is-danger strong,
+    .stock-sim-row.is-danger span { color: #f87171 !important; }
+
+    /* Alert kutuları */
+    .alert.success {
+        background: rgba(34,197,94,0.08) !important;
+        border: 1px solid rgba(34,197,94,0.22) !important;
+        color: #86efac !important;
+        border-radius: 10px !important;
+    }
+    .alert.error {
+        background: rgba(239,68,68,0.08) !important;
+        border: 1px solid rgba(239,68,68,0.22) !important;
+        color: #fca5a5 !important;
+        border-radius: 10px !important;
+    }
+    .alert.info {
+        background: rgba(59,130,246,0.08) !important;
+        border: 1px solid rgba(59,130,246,0.22) !important;
+        color: #93c5fd !important;
+        border-radius: 10px !important;
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       3. SAĞ PANEL — BEYAZ, TEMİZ, MODERN
+    ════════════════════════════════════════════════════════════ */
+    .right-panel .panel {
+        background: #ffffff !important;
+        border: none !important;
+        border-radius: 18px !important;
+        box-shadow:
+            0 0 0 1px rgba(0,0,0,0.07),
+            0 4px 12px rgba(0,0,0,0.08),
+            0 24px 64px rgba(0,0,0,0.14) !important;
+        padding: 18px 20px !important;
+    }
+
+    /* Plan header bölümü */
+    .plan-header {
+        border-bottom: 1px solid #f0f4f8 !important;
+        margin-bottom: 12px !important;
+        padding-bottom: 12px !important;
+    }
+
+    /* ── Tahmin dashboard'ları ──────────────────────────────── */
+    .forecast-dashboard {
+        background: linear-gradient(150deg, #f0fdf9 0%, #e6f7f3 100%) !important;
+        border: 1px solid #b6d9d3 !important;
+        border-radius: 14px !important;
+        box-shadow: 0 2px 8px rgba(20,184,166,0.08) !important;
+        padding: 12px !important;
+    }
+    .forecast-dashboard-title {
+        font-size: 9px !important;
+        font-weight: 900 !important;
+        letter-spacing: 1.6px !important;
+        text-transform: uppercase !important;
+        color: #0a4840 !important;
+    }
+    .forecast-stat {
+        background: #ffffff !important;
+        border: 1px solid #c4d9d5 !important;
+        border-radius: 10px !important;
+        box-shadow: 0 2px 6px rgba(20,184,166,0.07) !important;
+        padding: 8px !important;
+        transition: box-shadow 0.15s !important;
+    }
+    .forecast-stat:hover {
+        box-shadow: 0 4px 14px rgba(20,184,166,0.14) !important;
+    }
+    .forecast-stat strong {
+        font-size: 24px !important;
+        font-weight: 900 !important;
+        color: #0a4840 !important;
+        letter-spacing: -1.5px !important;
+        line-height: 1 !important;
+        display: block !important;
+    }
+    .forecast-stat span {
+        font-size: 9px !important;
+        font-weight: 800 !important;
+        color: #4d8a83 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.6px !important;
+    }
+    .forecast-input label {
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        color: #174f49 !important;
+    }
+    .forecast-input input,
+    .forecast-input select {
+        border: 1px solid #b6d9d3 !important;
+        border-radius: 8px !important;
+        background: #ffffff !important;
+        color: #0a2420 !important;
+        font-weight: 600 !important;
+    }
+    .forecast-input input:focus,
+    .forecast-input select:focus {
+        border-color: #14b8a6 !important;
+        box-shadow: 0 0 0 3px rgba(20,184,166,0.14) !important;
+        outline: none !important;
+    }
+    .forecast-day-label {
+        color: #14b8a6 !important;
+        font-size: 11px !important;
+        font-weight: 800 !important;
+    }
+    .date-step-btn {
+        background: #e6f2f0 !important;
+        color: #0a4840 !important;
+        border-radius: 6px !important;
+        border: none !important;
+        font-size: 12px !important;
+        transition: all 0.15s !important;
+    }
+    .date-step-btn:hover {
+        background: #14b8a6 !important;
+        color: #ffffff !important;
+    }
+    .forecast-reset-button {
+        background: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+        color: #475569 !important;
+        border-radius: 7px !important;
+        font-size: 11px !important;
+        box-shadow: none !important;
+        transform: none !important;
+    }
+    .forecast-reset-button:hover {
+        background: #f0fdf9 !important;
+        border-color: #14b8a6 !important;
+        color: #0a4840 !important;
+        box-shadow: none !important;
+        transform: none !important;
+    }
+
+    /* Stock need list */
+    .stock-need-list {
+        background: #ffffff !important;
+        border: 1px solid #c4d9d5 !important;
+        border-radius: 10px !important;
+        overflow: hidden !important;
+    }
+    .stock-need-row {
+        border-bottom: 1px solid #eef4f3 !important;
+    }
+    .stock-need-row strong { color: #0a3d38 !important; }
+    .stock-need-row span { color: #5a8a83 !important; }
+    .stock-need-row.is-warning span { color: #b45309 !important; }
+    .stock-need-row.is-danger span { color: #dc2626 !important; }
+
+    /* ── Export / Toolbar butonları ─────────────────────────── */
+    .export-actions {
+        margin-bottom: 12px !important;
+    }
+    .export-actions button {
+        background: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+        color: #334155 !important;
+        font-weight: 600 !important;
+        font-size: 12px !important;
+        border-radius: 9px !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+        transition: all 0.15s !important;
+        min-height: 36px !important;
+        margin: 0 !important;
+    }
+    .export-actions button:hover {
+        background: #f0fdf9 !important;
+        border-color: #14b8a6 !important;
+        color: #0a4840 !important;
+        box-shadow: 0 2px 8px rgba(20,184,166,0.1) !important;
+        transform: none !important;
+    }
+    .open-customer-drawer-btn {
+        background: linear-gradient(135deg, #0f766e, #0a5652) !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 8px rgba(15,118,110,0.28) !important;
+    }
+    .open-customer-drawer-btn:hover {
+        background: linear-gradient(135deg, #14b8a6, #0f766e) !important;
+        box-shadow: 0 4px 14px rgba(20,184,166,0.32) !important;
+        transform: none !important;
+    }
+    .plan-table-toolbar {
+        margin-bottom: 10px !important;
+        gap: 6px !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+    }
+    .plan-table-toolbar button:not(#ovenToggleBtn0):not(#ovenToggleBtn1):not(#ovenToggleBtn2) {
+        background: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+        color: #475569 !important;
+        font-weight: 600 !important;
+        font-size: 11.5px !important;
+        border-radius: 8px !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+        min-height: 32px !important;
+        margin: 0 !important;
+        transition: all 0.15s !important;
+    }
+    .plan-table-toolbar button:not(#ovenToggleBtn0):not(#ovenToggleBtn1):not(#ovenToggleBtn2):hover {
+        background: #f0fdf9 !important;
+        border-color: #14b8a6 !important;
+        color: #0a4840 !important;
+        box-shadow: none !important;
+        transform: none !important;
+    }
+    #networkStatusIndicator {
+        background: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 8px !important;
+    }
+
+    /* Ocak toggle butonları — JS inline background'ı ezmemek için background burada yok */
+    #ovenToggleBtn0, #ovenToggleBtn1, #ovenToggleBtn2 {
+        border-radius: 5px !important;
+        font-size: 9px !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.3px !important;
+        border: none !important;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.18) !important;
+        min-height: 26px !important;
+        padding: 0 12px !important;
+    }
+    /* Renk JS tarafından inline set ediliyor (#22c55e / #ef4444), burada override yok */
+    .plan-table-toolbar #ovenToggleBtn0,
+    .plan-table-toolbar #ovenToggleBtn1,
+    .plan-table-toolbar #ovenToggleBtn2 {
+        color: #fff !important;
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       4. TABLO
+    ════════════════════════════════════════════════════════════ */
+    .table-container {
+        border: 1px solid #e8edf2 !important;
+        border-radius: 14px !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
+        overflow: hidden !important;
+    }
+    thead {
+        background: linear-gradient(180deg, #0f1f30 0%, #0a1624 100%) !important;
+        position: sticky !important;
+        top: 0 !important;
+    }
+    th {
+        font-size: 9.5px !important;
+        font-weight: 900 !important;
+        letter-spacing: 1.4px !important;
+        padding: 13px 10px !important;
+        color: #5eead4 !important;
+        text-transform: uppercase !important;
+        border-bottom: 2px solid rgba(20,184,166,0.18) !important;
+        white-space: nowrap !important;
+    }
+    td {
+        padding: 9px 10px !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+        font-size: 12.5px !important;
+        color: #1e293b !important;
+        vertical-align: middle !important;
+    }
+    tbody tr:last-child td {
+        border-bottom: none !important;
+    }
+    tbody tr:not([data-cust-idx]):not([data-row-type]) td:not(.casting-own):not(.casting-own-254) {
+        background: #ffffff !important;
+    }
+    tbody tr:not([data-cust-idx]):not([data-row-type]):hover td:not(.casting-own):not(.casting-own-254) {
+        background: #f0fdf9 !important;
+    }
+    /* KM satırları — mavi */
+    td.casting-own {
+        background: #dbeafe !important;
+        color: #1e3a8a !important;
+        font-weight: 700 !important;
+    }
+    /* KM 254mm — açık mavi */
+    td.casting-own-254 {
+        background: #e0f2fe !important;
+        color: #0c4a6e !important;
+        font-weight: 700 !important;
+    }
+    .slot-cell {
+        font-size: 14px !important;
+        font-weight: 900 !important;
+        color: #0f172a !important;
+    }
+
+    /* Müşteri satır renkleri — canlı ama okunaklı */
+    tr[data-cust-idx="0"] td  { background: #fefce8 !important; color: #78350f !important; }
+    tr[data-cust-idx="1"] td  { background: #eff6ff !important; color: #1e3a8a !important; }
+    tr[data-cust-idx="2"] td  { background: #fdf2f8 !important; color: #831843 !important; }
+    tr[data-cust-idx="3"] td  { background: #f5f3ff !important; color: #4c1d95 !important; }
+    tr[data-cust-idx="4"] td  { background: #fff7ed !important; color: #7c2d12 !important; }
+    tr[data-cust-idx="5"] td  { background: #f0fdfa !important; color: #134e4a !important; }
+    tr[data-cust-idx="6"] td  { background: #f0f9ff !important; color: #0c4a6e !important; }
+    tr[data-cust-idx="7"] td  { background: #f0fdf4 !important; color: #14532d !important; }
+    tr[data-cust-idx="8"] td  { background: #fff1f2 !important; color: #881337 !important; }
+    tr[data-cust-idx="9"] td  { background: #f0fdf4 !important; color: #14532d !important; }
+    tr[data-cust-idx="10"] td { background: #fdf4ff !important; color: #86198f !important; }
+    tr[data-cust-idx="11"] td { background: #ecfeff !important; color: #155e75 !important; }
+    tr[data-cust-idx="12"] td { background: #fff7ed !important; color: #9a3412 !important; }
+    tr[data-cust-idx="13"] td { background: #eef2ff !important; color: #3730a3 !important; }
+    tr[data-cust-idx="14"] td { background: #fafaf9 !important; color: #44403c !important; }
+    tr[data-cust-idx="15"] td { background: #f0fdf4 !important; color: #065f46 !important; }
+    /* Dolu satırların ilk td'sine sol kenarlık — boş satırlardan net ayrım */
+    tr[data-cust-idx] > td:first-child {
+        border-left: 3px solid currentColor !important;
+        opacity: 0.9 !important;
+    }
+
+    tr[data-row-type="empty"] td {
+        background: #f0f4f8 !important;
+        color: #9eb3c2 !important;
+        font-style: italic !important;
+        opacity: 0.72 !important;
+    }
+    tr[data-row-type="empty"] td input,
+    tr[data-row-type="empty"] td select,
+    tr[data-row-type="empty"] td textarea {
+        color: #aac0cc !important;
+        background: rgba(200,215,225,0.18) !important;
+        border-color: rgba(180,200,215,0.35) !important;
+    }
+    tr[data-row-type="empty"]:hover td {
+        background: #e8eef4 !important;
+        opacity: 0.85 !important;
+    }
+    tr[data-cust-idx] td input,
+    tr[data-cust-idx] td select,
+    tr[data-cust-idx] td textarea {
+        background: rgba(255,255,255,0.72) !important;
+        border-color: rgba(0,0,0,0.12) !important;
+    }
+
+    /* Tablo hücre ögeleri */
+    .lot-input {
+        background: rgba(255,255,255,0.75) !important;
+        border: 1px solid rgba(0,0,0,0.14) !important;
+        border-radius: 7px !important;
+        font-weight: 800 !important;
+    }
+    .slot-date-input,
+    .slot-time-input {
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 6px !important;
+        color: #1e293b !important;
+    }
+    .slot-oven-select {
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 6px !important;
+        color: #1e293b !important;
+    }
+    .slot-confirm-btn {
+        background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+        border-radius: 8px !important;
+        box-shadow: 0 2px 8px rgba(34,197,94,0.28) !important;
+        transition: all 0.15s !important;
+    }
+    .slot-confirm-btn:hover {
+        background: linear-gradient(135deg, #16a34a, #15803d) !important;
+        box-shadow: 0 4px 12px rgba(34,197,94,0.35) !important;
+    }
+    .row-delete-btn {
+        background: #fff1f2 !important;
+        border: 1px solid #fecdd3 !important;
+        border-radius: 8px !important;
+        color: #be123c !important;
+        box-shadow: none !important;
+        transition: all 0.15s !important;
+    }
+    .row-delete-btn:hover {
+        background: #fecdd3 !important;
+        box-shadow: none !important;
+        transform: none !important;
+    }
+    .complete-casting-button {
+        background: #f0fdf4 !important;
+        border: 1px solid #86efac !important;
+        border-radius: 8px !important;
+        color: #16a34a !important;
+        box-shadow: none !important;
+        transition: all 0.15s !important;
+    }
+    .complete-casting-button:hover {
+        background: #dcfce7 !important;
+        box-shadow: none !important;
+        transform: none !important;
+    }
+    .row-copy-button {
+        background: #f8fafc !important;
+        border: 1px solid #d9e0e5 !important;
+        border-radius: 8px !important;
+        color: #475569 !important;
+        box-shadow: none !important;
+        transition: all 0.15s !important;
+    }
+    .row-copy-button:hover,
+    .row-copy-button.active {
+        background: #0f766e !important;
+        border-color: #0f766e !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 8px rgba(15,118,110,0.3) !important;
+        transform: none !important;
+    }
+    .status-cell { color: #64748b !important; font-size: 11px !important; }
+
+    /* Sürükleme/drop görselleri */
+    tr.drop-ready td { outline: 2px dashed #14b8a6 !important; outline-offset: -2px !important; }
+    .row-drop-target td { outline: 2px solid #3b82f6 !important; background: rgba(59,130,246,0.06) !important; }
+    tr.copy-source-row td, tr.copy-target-row td { box-shadow: inset 0 0 0 2px rgba(20,184,166,0.45) !important; }
+    .duplicate-oven-row td { outline: 2px solid #ef4444 !important; outline-offset: -2px !important; }
+
+    /* ════════════════════════════════════════════════════════════
+       5. SEKMELER & ÖZET
+    ════════════════════════════════════════════════════════════ */
+    .planner-page-tabs {
+        background: #f1f5f9 !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 10px !important;
+        padding: 5px !important;
+        gap: 6px !important;
+    }
+    .planner-page-tabs button {
+        color: #64748b !important;
+        border-radius: 7px !important;
+        font-weight: 600 !important;
+        font-size: 12px !important;
+        transition: all 0.15s !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        min-height: 34px !important;
+        background: transparent !important;
+        border: 1px solid transparent !important;
+    }
+    .planner-page-tabs button.active {
+        background: #0f1f30 !important;
+        border-color: transparent !important;
+        color: #5eead4 !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+        transform: none !important;
+    }
+    .planner-page-tabs button:hover:not(.active) {
+        background: #e8eef4 !important;
+        color: #334155 !important;
+        box-shadow: none !important;
+        transform: none !important;
+    }
+    .page-summary {
+        background: linear-gradient(135deg, #f0fdf9, #e6f5f2) !important;
+        border: 1px solid #b6d9d3 !important;
+        border-radius: 10px !important;
+        color: #0a3d38 !important;
+        font-size: 12px !important;
+        font-weight: 700 !important;
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       6. MODALler & OVERLAY'LAR
+    ════════════════════════════════════════════════════════════ */
+    .confirm-overlay {
+        background: rgba(0,0,0,0.6) !important;
+        backdrop-filter: blur(8px) !important;
+    }
+    .confirm-box {
+        background: #ffffff !important;
+        border-radius: 20px !important;
+        box-shadow: 0 28px 80px rgba(0,0,0,0.4) !important;
+        border: 1px solid rgba(0,0,0,0.06) !important;
+    }
+    .confirm-box p {
+        color: #1e293b !important;
+        font-size: 14px !important;
+        font-weight: 500 !important;
+        line-height: 1.6 !important;
+    }
+    .confirm-btn-yes {
+        background: #dc2626 !important;
+        border-radius: 10px !important;
+        font-weight: 700 !important;
+        box-shadow: 0 2px 10px rgba(220,38,38,0.28) !important;
+        min-height: unset !important;
+        padding: 8px 20px !important;
+        width: auto !important;
+        margin: 0 !important;
+        transition: all 0.15s !important;
+    }
+    .confirm-btn-yes:hover {
+        background: #b91c1c !important;
+        box-shadow: 0 4px 14px rgba(220,38,38,0.35) !important;
+        transform: none !important;
+    }
+    .confirm-btn-no {
+        background: #f1f5f9 !important;
+        border-radius: 10px !important;
+        font-weight: 700 !important;
+        color: #475569 !important;
+        min-height: unset !important;
+        padding: 8px 20px !important;
+        width: auto !important;
+        margin: 0 !important;
+        transition: all 0.15s !important;
+    }
+    .confirm-btn-no:hover {
+        background: #e2e8f0 !important;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Backup modal */
+    #backupSelectModal {
+        background: rgba(0,0,0,0.6) !important;
+        backdrop-filter: blur(8px) !important;
+    }
+    #backupSelectBox {
+        background: #ffffff !important;
+        border-radius: 20px !important;
+        box-shadow: 0 28px 80px rgba(0,0,0,0.4) !important;
+    }
+    #backupSelectBox h3 { color: #0f172a !important; font-size: 15px !important; font-weight: 800 !important; }
+    #backupList li {
+        background: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 8px !important;
+        color: #475569 !important;
+        font-size: 13px !important;
+        transition: all 0.12s !important;
+    }
+    #backupList li:hover {
+        background: #f0fdf9 !important;
+        border-color: #14b8a6 !important;
+        color: #0a4840 !important;
+    }
+    #backupList li.selected {
+        background: #f0fdf9 !important;
+        border-color: #14b8a6 !important;
+        font-weight: 700 !important;
+        color: #0a4840 !important;
+    }
+    #backupModalLoad {
+        background: linear-gradient(135deg, #0f766e, #0a5652) !important;
+        border-radius: 9px !important;
+        box-shadow: 0 3px 10px rgba(15,118,110,0.3) !important;
+        font-weight: 700 !important;
+        color: #ffffff !important;
+        min-height: unset !important;
+        padding: 7px 18px !important;
+        width: auto !important;
+        margin: 0 !important;
+        transition: all 0.15s !important;
+    }
+    #backupModalLoad:hover:not(:disabled) {
+        background: linear-gradient(135deg, #14b8a6, #0f766e) !important;
+        box-shadow: 0 4px 14px rgba(20,184,166,0.3) !important;
+        transform: none !important;
+    }
+    #backupModalLoad:disabled { background: #94a3b8 !important; box-shadow: none !important; }
+    #backupModalCancel {
+        background: #f1f5f9 !important;
+        border-radius: 9px !important;
+        color: #475569 !important;
+        font-weight: 600 !important;
+        min-height: unset !important;
+        padding: 7px 18px !important;
+        width: auto !important;
+        margin: 0 !important;
+        transition: all 0.15s !important;
+    }
+    #backupModalCancel:hover {
+        background: #e2e8f0 !important;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Customer drawer */
+    .customer-drawer {
+        background: #f8fafc !important;
+        border-left: 1px solid #e2e8f0 !important;
+    }
+    .customer-drawer-header {
+        background: linear-gradient(135deg, #0f1f30 0%, #08121e 100%) !important;
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       7. SİPARİŞ & ANALİZ KARTLARI
+    ════════════════════════════════════════════════════════════ */
+    .pending-order-card {
+        background: #ffffff !important;
+        border: 1px solid #e8edf2 !important;
+        border-left: 4px solid #14b8a6 !important;
+        border-radius: 10px !important;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.05) !important;
+        transition: box-shadow 0.18s, border-left-color 0.18s !important;
+    }
+    .pending-order-card:hover {
+        box-shadow: 0 4px 16px rgba(20,184,166,0.14) !important;
+        border-left-color: #0f766e !important;
+    }
+    .pending-order-card.assigned {
+        border-left-color: #94a3b8 !important;
+        opacity: 0.68 !important;
+    }
+    .pending-order-index {
+        background: rgba(20,184,166,0.1) !important;
+        border: 1px solid rgba(20,184,166,0.2) !important;
+        color: #0a4840 !important;
+    }
+    .analysis-card {
+        background: #ffffff !important;
+        border: 1px solid #e8edf2 !important;
+        border-left: 4px solid #14b8a6 !important;
+        border-radius: 10px !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+        transition: box-shadow 0.18s !important;
+    }
+    .analysis-card:hover {
+        box-shadow: 0 4px 16px rgba(20,184,166,0.12) !important;
+    }
+    .analysis-card.selected {
+        border-color: #14b8a6 !important;
+        box-shadow: 0 0 0 2px rgba(20,184,166,0.2) !important;
+    }
+    .quality-chip, .analysis-quality-chip {
+        background: #f0fdf9 !important;
+        border: 1px solid rgba(20,184,166,0.2) !important;
+        color: #0a4840 !important;
+        font-size: 10.5px !important;
+    }
+    .customer-box {
+        background: linear-gradient(180deg, #ffffff, #f8fbfb) !important;
+        border: 1px solid #dce7e5 !important;
+        border-radius: 14px !important;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.05) !important;
+    }
+    .customer-box h3 {
+        color: #0a3d38 !important;
+        font-size: 14px !important;
+        font-weight: 800 !important;
+    }
+    .slot-assigner {
+        background: linear-gradient(145deg, #f0fdf9, #e6f7f3) !important;
+        border: 1px solid #b6d9d3 !important;
+        border-radius: 14px !important;
+        box-shadow: 0 4px 16px rgba(20,184,166,0.08) !important;
+    }
+    .slot-assigner label {
+        color: #174f49 !important;
+        font-size: 11px !important;
+        font-weight: 800 !important;
+    }
+    .slot-assigner select {
+        background: #ffffff !important;
+        border: 1px solid #b6d9d3 !important;
+        border-radius: 9px !important;
+        color: #0a2420 !important;
+        font-weight: 600 !important;
+    }
+    .slot-assigner button {
+        background: linear-gradient(135deg, #14b8a6, #0f766e) !important;
+        box-shadow: 0 3px 12px rgba(20,184,166,0.28) !important;
+        border-radius: 10px !important;
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        transition: all 0.18s !important;
+    }
+    .slot-assigner button:hover {
+        background: linear-gradient(135deg, #0d9488, #0a5652) !important;
+        box-shadow: 0 5px 16px rgba(20,184,166,0.35) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    /* Info box */
+    .info-box {
+        background: linear-gradient(135deg, #f0fdf9, #e6f5f2) !important;
+        border: 1.5px solid #b6d9d3 !important;
+        border-left: 4px solid #14b8a6 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 2px 8px rgba(20,184,166,0.07) !important;
+    }
+    .info-box strong {
+        color: #0a4840 !important;
+        font-size: 11px !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.4px !important;
+    }
+
+    /* Ana teal buton (genel) */
+    button {
+        font-family: inherit !important;
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       8. SCROLLBAR
+    ════════════════════════════════════════════════════════════ */
+    ::-webkit-scrollbar { width: 6px !important; height: 6px !important; }
+    ::-webkit-scrollbar-track { background: transparent !important; }
+    ::-webkit-scrollbar-thumb {
+        background: rgba(20,184,166,0.22) !important;
+        border-radius: 999px !important;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(20,184,166,0.42) !important;
+    }
+
+    </style>
+
 </head>
 <body>
     <div id="backupSelectModal">
@@ -3251,7 +4385,10 @@
     <div class="container">
         <div class="panel">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-                <h2 style="margin:0;">📦 STOK BİLGİSİ</h2>
+                <div style="display:flex;align-items:center;">
+                    <h2 style="margin:0;">📦 STOK BİLGİSİ</h2>
+                    <span id="appVersionBadge" class="app-version-badge">Sürüm yükleniyor</span>
+                </div>
                 <button type="button" id="clearStockBtn" onclick="clearAllStockInputs()" title="Stok bilgilerini temizle" style="background:#fee2e2;border:1px solid #fca5a5;color:#b91c1c;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;min-height:unset;box-shadow:none;transform:none;width:auto;">🗑 Temizle</button>
             </div>
 
@@ -3376,6 +4513,17 @@
                 <input type="hidden" id="lastCasting3">
             </div>
 
+            <div class="stock-dashboard-outer">
+                <div class="stock-dashboard" id="stockDashboard">
+                    <div class="stock-dashboard-title">GÜNCEL STOK</div>
+                    <div class="stock-base-time">
+                        <label for="stockBaseTime">Stok saati</label>
+                        <input type="time" id="stockBaseTime" value="08:00" onchange="generatePlan()">
+                    </div>
+                </div>
+                <div id="stockExtraControls"></div>
+                <button type="button" class="stock-copy-button" title="Stok miktarını kopyala" onclick="copyStockDashboard()"></button>
+            </div>
 
             <div class="stock-dashboard left-slot-stock" id="slotStockDashboard">
                 <div class="stock-dashboard-title">SLOT SONU STOK</div>
@@ -3400,8 +4548,6 @@
                 <div id="stockSimRows"></div>
                 <button type="button" class="stock-copy-button" title="Simülasyonu kopyala" onclick="copyStockSimDashboard()"></button>
             </div>
-
-            <div class="customer-box left-tools-panel"></div>
 
             <div id="alert" class="alert"></div>
         </div>
@@ -3455,17 +4601,6 @@
                             <div id="stockNeedRows"></div>
                         </div>
                     </div>
-                    <div class="stock-dashboard-outer">
-                        <div class="stock-dashboard" id="stockDashboard">
-                            <div class="stock-dashboard-title">GÜNCEL STOK</div>
-                            <div class="stock-base-time">
-                                <label for="stockBaseTime">Stok saati</label>
-                                <input type="time" id="stockBaseTime" value="08:00" onchange="generatePlan()">
-                            </div>
-                            <button type="button" class="stock-copy-button" title="Stok miktarını kopyala" onclick="copyStockDashboard()"></button>
-                        </div>
-                        <div id="stockExtraControls"></div>
-                    </div>
                 </div>
 
                 <div id="manualPagePanel" class="planner-page-panel">
@@ -3474,6 +4609,7 @@
                     <button type="button" onclick="copyPlanShareText()">📋 Planı Kopyala</button>
                     <button type="button" onclick="createPdfReport()">📄 PDF Oluştur</button>
                     <button type="button" onclick="exportExcel()">📊 Excel Aktar</button>
+                    <button type="button" onclick="openCustomerDrawer()" class="open-customer-drawer-btn" style="margin-left:auto;">📋 Müşteriler</button>
                 </div>
 
                 <div class="plan-table-toolbar">
@@ -3512,8 +4648,8 @@
                             <col style="width: 230px">
                             <col style="width: 178px">
                             <col style="width: 238px">
-                            <col style="width: 112px">
-                            <col style="width: 54px">
+                            <col style="width: 128px">
+                            <col style="width: 60px">
                         </colgroup>
                         <thead>
                             <tr>
@@ -3585,6 +4721,7 @@
         const COMPLETED_CASTING_STORAGE_KEY = "castingPlannerCompletedCastings";
         const ANALYSIS_PORTFOLIO_STORAGE_KEY = "castingPlannerAnalysisPortfolio";
         const KM_ANALYSIS_STORAGE_KEY = "castingPlannerKmAnalysisSettings";
+        const CUSTOMER_MAX_LENGTH_STORAGE_KEY = "castingPlannerCustomerMaxLengths";
         const QUALITY_PORTFOLIO_STORAGE_KEY = "castingPlannerQualityPortfolio";
         const LOCAL_LAST_MODIFIED_KEY = "castingPlannerLastModified";
         const DELETED_DEFAULTS_KEY = "castingPlannerDeletedDefaults";
@@ -3760,7 +4897,8 @@
         let analysisPortfolio = [];
         let qualityPortfolio = DEFAULT_QUALITY_PORTFOLIO.slice();
         let kmAnalysisByDiameter = { ...DEFAULT_KM_ANALYSIS_BY_DIAMETER };
-        let kmDefaultQuality = KM_QUALITY;
+        let kmDefaultQualityByDiameter = {};
+        let customerMaxLengths = {};
         let selectedAnalysisCustomer = "";
         let editingCustomerAnalysisId = "";
         let selectedCustomerDiameter = "";
@@ -4061,7 +5199,7 @@
         }
 
         function initializeOrderBoardHtml() {
-            const box = document.querySelector(".customer-box");
+            const box = document.getElementById("customerPortfolioBox");
             if (!box) {
                 return;
             }
@@ -4071,6 +5209,7 @@
                     <button type="button" class="customer-tab active" id="customersTabButton" onmousedown="event.preventDefault()" onclick="showCustomerTab('customers')">Müşteriler</button>
                     <button type="button" class="customer-tab" id="kmanalysisTabButton" onmousedown="event.preventDefault()" onclick="showCustomerTab('kmanalysis')">KM Analizleri</button>
                     <button type="button" class="customer-tab" id="qualityTabButton" onmousedown="event.preventDefault()" onclick="showCustomerTab('quality')">Kalite</button>
+                    <button type="button" class="customer-tab" id="customerlengthsTabButton" onmousedown="event.preventDefault()" onclick="showCustomerTab('customerlengths')">Müşteri Boyları</button>
                 </div>
                 <datalist id="customerPortfolioOptions"></datalist>
                 <datalist id="qualityPortfolioOptions"></datalist>
@@ -4099,6 +5238,12 @@
                         <div class="quality-chip-list" id="qualityPortfolioList"></div>
                     </div>
                 </div>
+                <div class="customer-tab-panel" id="customerlengthsTabPanel" hidden>
+                    <div class="compact-panel-body" style="padding:12px 14px;">
+                        <div id="customerMaxLengthsGrid"></div>
+                        <button type="button" onclick="saveCustomerMaxLengths()" style="width:100%;margin-top:4px;">Müşteri Boylarını Kaydet</button>
+                    </div>
+                </div>
             `;
         }
 
@@ -4113,9 +5258,27 @@
             }
         }
 
+        function isCustomizedKmOrder(order) {
+            if (!order || !isKmOrder(order)) {
+                return false;
+            }
+            const diameter = String(order.diameter || "");
+            const quality = normalizeQualityValue(order.quality);
+            const analysis = String(getOrderAnalysisValue(order) || "").trim();
+            const note = String(order.note || "").trim();
+            return Boolean(
+                order.isUserTyped ||
+                order.analysisId ||
+                (order.length && String(order.length) !== KM_LENGTH) ||
+                (quality && quality !== normalizeQualityValue(getKmDefaultQuality(diameter))) ||
+                (analysis && analysis !== String(getKmAnalysis(diameter) || "").trim()) ||
+                note
+            );
+        }
+
         function getPersistablePendingOrders() {
             return pendingOrders.filter(order =>
-                !order.isManualPlanRow || !isKmOrder(order) || order.isUserTyped
+                !order.isManualPlanRow || !isKmOrder(order) || isCustomizedKmOrder(order)
             );
         }
 
@@ -4449,7 +5612,7 @@
                 analysisPortfolio: JSON.parse(JSON.stringify(analysisPortfolio)),
                 qualityPortfolio: JSON.parse(JSON.stringify(qualityPortfolio)),
                 kmAnalysisByDiameter: JSON.parse(JSON.stringify(kmAnalysisByDiameter)),
-                kmDefaultQuality
+                kmDefaultQualityByDiameter: JSON.parse(JSON.stringify(kmDefaultQualityByDiameter))
             };
         }
 
@@ -4534,7 +5697,9 @@
                 kmAnalysisByDiameter = state.kmAnalysisByDiameter && typeof state.kmAnalysisByDiameter === "object"
                     ? state.kmAnalysisByDiameter
                     : { ...DEFAULT_KM_ANALYSIS_BY_DIAMETER };
-                kmDefaultQuality = normalizeQualityValue(state.kmDefaultQuality) || kmDefaultQuality || KM_QUALITY;
+                kmDefaultQualityByDiameter = state.kmDefaultQualityByDiameter && typeof state.kmDefaultQualityByDiameter === "object"
+                    ? state.kmDefaultQualityByDiameter
+                    : {};
 
                 Object.entries(state.settings || {}).forEach(([id, value]) => {
                     const element = document.getElementById(id);
@@ -4557,7 +5722,7 @@
                 localStorage.setItem(QUALITY_PORTFOLIO_STORAGE_KEY, JSON.stringify(qualityPortfolio));
                 localStorage.setItem(KM_ANALYSIS_STORAGE_KEY, JSON.stringify({
                     ...kmAnalysisByDiameter,
-                    defaultQuality: kmDefaultQuality
+                    defaultQualityByDiameter: kmDefaultQualityByDiameter
                 }));
 
                 syncAllTimePartsFromHidden();
@@ -4587,31 +5752,40 @@
             try {
                 const saved = JSON.parse(localStorage.getItem(KM_ANALYSIS_STORAGE_KEY) || "{}");
                 kmAnalysisByDiameter = { ...DEFAULT_KM_ANALYSIS_BY_DIAMETER };
-                kmDefaultQuality = normalizeQualityValue(saved && saved.defaultQuality) || KM_QUALITY;
+                kmDefaultQualityByDiameter = {};
+                const legacyQuality = normalizeQualityValue(saved && saved.defaultQuality);
                 Object.keys(DEFAULT_KM_ANALYSIS_BY_DIAMETER).forEach(diameter => {
                     if (saved && typeof saved[diameter] === "string" && saved[diameter].trim()) {
                         kmAnalysisByDiameter[diameter] = saved[diameter].trim();
                     }
+                    const perDiam = saved && saved.defaultQualityByDiameter && normalizeQualityValue(saved.defaultQualityByDiameter[diameter]);
+                    if (perDiam) {
+                        kmDefaultQualityByDiameter[diameter] = perDiam;
+                    } else if (legacyQuality) {
+                        kmDefaultQualityByDiameter[diameter] = legacyQuality;
+                    }
                 });
             } catch (error) {
                 kmAnalysisByDiameter = { ...DEFAULT_KM_ANALYSIS_BY_DIAMETER };
-                kmDefaultQuality = KM_QUALITY;
+                kmDefaultQualityByDiameter = {};
                 console.warn("KM analizleri yuklenemedi", error);
             }
             renderKmAnalysisSettings();
         }
 
         function saveKmAnalysisSettings() {
-            const qualityInput = document.getElementById("kmDefaultQuality");
-            kmDefaultQuality = normalizeQualityValue(qualityInput && qualityInput.value) || KM_QUALITY;
+            kmDefaultQualityByDiameter = {};
             Object.keys(DEFAULT_KM_ANALYSIS_BY_DIAMETER).forEach(diameter => {
-                const input = document.getElementById(`kmAnalysis${diameter}`);
-                const value = input ? input.value.trim() : "";
+                const qInput = document.getElementById(`kmDefaultQuality${diameter}`);
+                const q = normalizeQualityValue(qInput && qInput.value);
+                if (q) kmDefaultQualityByDiameter[diameter] = q;
+                const aInput = document.getElementById(`kmAnalysis${diameter}`);
+                const value = aInput ? aInput.value.trim() : "";
                 kmAnalysisByDiameter[diameter] = value || DEFAULT_KM_ANALYSIS_BY_DIAMETER[diameter];
             });
             localStorage.setItem(KM_ANALYSIS_STORAGE_KEY, JSON.stringify({
                 ...kmAnalysisByDiameter,
-                defaultQuality: kmDefaultQuality
+                defaultQualityByDiameter: kmDefaultQualityByDiameter
             }));
             recordUndoCheckpoint();
             generatePlan();
@@ -4625,17 +5799,66 @@
                 return;
             }
 
-            grid.innerHTML = `
-                <div class="km-analysis-field">
-                    <label for="kmDefaultQuality">KM Varsayılan Kalite</label>
-                    <input type="text" id="kmDefaultQuality" list="qualityPortfolioOptions" value="${escapeHtml(kmDefaultQuality || KM_QUALITY)}" oninput="this.value = this.value.toLocaleUpperCase('tr-TR')">
-                </div>
-            ` + Object.keys(DEFAULT_KM_ANALYSIS_BY_DIAMETER).map(diameter => `
+            grid.innerHTML = Object.keys(DEFAULT_KM_ANALYSIS_BY_DIAMETER).map(diameter => `
                 <div class="km-analysis-field">
                     <label for="kmAnalysis${diameter}">${diameter}mm KM</label>
+                    <label for="kmDefaultQuality${diameter}" style="font-size:11px;font-weight:700;color:#475569;margin-top:6px;margin-bottom:3px;display:block;">Varsayılan Kalite</label>
+                    <input type="text" id="kmDefaultQuality${diameter}" list="qualityPortfolioOptions" value="${escapeHtml(kmDefaultQualityByDiameter[diameter] || KM_QUALITY)}" oninput="this.value = this.value.toLocaleUpperCase('tr-TR')" style="margin-bottom:6px;">
                     <textarea id="kmAnalysis${diameter}">${escapeHtml(kmAnalysisByDiameter[diameter] || DEFAULT_KM_ANALYSIS_BY_DIAMETER[diameter])}</textarea>
                 </div>
             `).join("");
+        }
+
+        function loadCustomerMaxLengths() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(CUSTOMER_MAX_LENGTH_STORAGE_KEY) || "{}");
+                customerMaxLengths = {};
+                CUSTOMER_DIAMETERS.forEach(d => {
+                    const v = saved[d];
+                    const n = parseInt(v, 10);
+                    if (!isNaN(n) && n > 0) customerMaxLengths[d] = n;
+                });
+            } catch {
+                customerMaxLengths = {};
+            }
+        }
+
+        function saveCustomerMaxLengths() {
+            customerMaxLengths = {};
+            CUSTOMER_DIAMETERS.forEach(d => {
+                const input = document.getElementById(`customerMaxLength${d}`);
+                const n = input ? parseInt(input.value, 10) : NaN;
+                if (!isNaN(n) && n > 0) customerMaxLengths[d] = n;
+            });
+            localStorage.setItem(CUSTOMER_MAX_LENGTH_STORAGE_KEY, JSON.stringify(customerMaxLengths));
+            recordUndoCheckpoint();
+            generatePlan();
+            updateOrderBoard();
+            showAlert("Müşteri boyları kaydedildi.", "success");
+        }
+
+        function renderCustomerMaxLengthsTab() {
+            const grid = document.getElementById("customerMaxLengthsGrid");
+            if (!grid) return;
+            grid.innerHTML = `
+                <p style="margin:0 0 10px;font-size:12px;color:#64748b;">Her çap için maksimum müşteri boyunu girin. KM siparişleri etkilenmez.</p>
+                ${CUSTOMER_DIAMETERS.map(d => `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #e2e8f0;">
+                    <span style="font-weight:600;font-size:13px;color:#0b3b36;">${d}mm</span>
+                    <input type="number" id="customerMaxLength${d}" min="1" step="1" placeholder="Sınır yok"
+                        value="${customerMaxLengths[d] ? escapeHtml(String(customerMaxLengths[d])) : ""}"
+                        style="width:130px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;text-align:right;">
+                </div>`).join("")}
+            `;
+        }
+
+        function capCustomerLength(length, diameter) {
+            if (!length || !diameter) return length;
+            const n = parseInt(length, 10);
+            if (isNaN(n)) return length;
+            const max = customerMaxLengths[String(diameter)];
+            if (!max || n <= max) return length;
+            return String(max);
         }
 
         function getDeletedDefaults() {
@@ -4672,11 +5895,8 @@
                 if (!existing) {
                     analysisPortfolio.push({ ...defaultEntry });
                     changed = true;
-                } else if (String(existing.id || "").startsWith("default-") && existing.analysis !== defaultEntry.analysis) {
-                    existing.analysis = defaultEntry.analysis;
-                    existing.note = defaultEntry.note || "";
-                    changed = true;
                 }
+                // Mevcut kayıt kullanıcı tarafından düzenlenmiş olabilir; varsayılan metin yalnız ilk oluşturulurken kullanılır.
             });
             if (changed) {
                 saveAnalysisPortfolio();
@@ -4686,7 +5906,7 @@
 
         function showCustomerTab(tabName) {
             const scrollPosition = window.scrollY;
-            const tabs = ['customers', 'kmanalysis', 'quality'];
+            const tabs = ['customers', 'kmanalysis', 'quality', 'customerlengths'];
             tabs.forEach(t => {
                 const panel = document.getElementById(t + "TabPanel");
                 const btn = document.getElementById(t + "TabButton");
@@ -4695,6 +5915,9 @@
             });
             if (tabName === 'customers') {
                 renderAnalysisPortfolioList();
+            }
+            if (tabName === 'customerlengths') {
+                renderCustomerMaxLengthsTab();
             }
             requestAnimationFrame(() => {
                 window.scrollTo({ top: scrollPosition, left: window.scrollX, behavior: "instant" });
@@ -5365,7 +6588,7 @@
                 lengthInput.value = KM_LENGTH;
             }
             if (qualityInput && !qualityInput.value.trim()) {
-                qualityInput.value = getKmDefaultQuality();
+                qualityInput.value = getKmDefaultQuality(diameter);
             }
             if (analysisInput && !analysisInput.value.trim()) {
                 analysisInput.value = getKmAnalysis(diameter);
@@ -5596,7 +6819,7 @@
 
         function saveInlineAnalysisEntry(button, entryId) {
             const entry = analysisPortfolio.find(item => item.id === entryId);
-            const card = button ? button.closest(".analysis-variant") : null;
+            const card = button ? button.closest(".diam-quality-row") : null;
             if (!entry || !card) return;
             const quality = normalizeQualityValue(card.querySelector(".analysis-inline-quality")?.value);
             const analysis = card.querySelector(".analysis-inline-analysis")?.value.trim() || "";
@@ -5673,6 +6896,10 @@
             editingCustomerAnalysisId = "";
             selectedCustomerDiameter = "";
             renderAnalysisPortfolioList();
+            requestAnimationFrame(() => {
+                const body = document.getElementById("customerDrawerBody") || document.querySelector(".customer-drawer-body");
+                if (body) body.scrollTop = 0;
+            });
         }
 
         function closeSelectedAnalysisCustomer() {
@@ -6112,7 +7339,9 @@
             }
 
             const query = upperText(document.getElementById("analysisPortfolioSearch")?.value || "");
+            const selectedKey = normalizeCustomerValue(selectedAnalysisCustomer);
             const filtered = analysisPortfolio.filter(entry => {
+                if (selectedKey && normalizeCustomerValue(entry.customer) === selectedKey) return true;
                 return !query || upperText(`${entry.customer} ${entry.customerCode || ""} ${entry.customerLength || ""} ${entry.quality} ${entry.analysis} ${entry.note || ""}`).includes(query);
             });
             const grouped = filtered.reduce((groups, entry) => {
@@ -6485,6 +7714,7 @@
             updateCastingForecast();
             updateStockPreviewSlotCombo();
             updateOrderBoard();
+            scheduleCloudPlanSync();
         }
 
         function unassignOrder(orderId, event) {
@@ -6573,7 +7803,7 @@
 
             const defaultLength = getCustomerDefaultLength(order.customer);
             if (defaultLength && (options.forceLength || !order.length)) {
-                order.length = defaultLength;
+                order.length = capCustomerLength(defaultLength, order.diameter);
             }
 
             const matchedAnalysis = findAnalysisEntry(order.customer, order.quality)
@@ -6639,21 +7869,26 @@
             if (CUSTOMER_DIAMETERS.includes(defaults.diameter)) {
                 order.diameter = defaults.diameter;
             }
-            order.length = defaults.length;
-            order.quality = defaults.quality;
-            order.note = defaults.note;
-            order.analysis = defaults.analysis;
+            if (defaults.quality) {
+                order.quality = defaults.quality;
+            }
 
+            // Boy ve analizi portföyden çek (son siparişten değil)
             const matchedAnalysis = findAnalysisEntry(order.customer, order.quality);
-            if (
-                matchedAnalysis &&
-                getAnalysisForDiameter(matchedAnalysis, order.diameter) === defaults.analysis
-            ) {
+            if (matchedAnalysis) {
+                const portfolioLength = getCustomerDefaultLength(order.customer);
+                if (portfolioLength) order.length = capCustomerLength(portfolioLength, order.diameter);
                 order.analysisId = matchedAnalysis.id;
                 order.customAnalysis = "";
+                order.analysis = getAnalysisForDiameter(matchedAnalysis, order.diameter) || matchedAnalysis.analysis;
+                if (!String(order.note || "").trim()) order.note = matchedAnalysis.note || "";
             } else {
+                // Portföyde bu kalite yok, son siparişten al
+                if (defaults.length) order.length = capCustomerLength(defaults.length, order.diameter);
                 order.analysisId = "";
                 order.customAnalysis = defaults.analysis;
+                order.analysis = defaults.analysis;
+                order.note = defaults.note;
             }
             return true;
         }
@@ -6670,6 +7905,11 @@
                     return;
                 }
                 order.diameter = String(value);
+                if (!wasKmOrder) {
+                    const customerLength = getCustomerDefaultLength(order.customer);
+                    const preferredLength = customerLength || order.length;
+                    order.length = capCustomerLength(preferredLength, order.diameter);
+                }
             } else if (field === "customer") {
                 order.customer = upperText(value).trim();
                 order.analysisId = "";
@@ -6679,7 +7919,7 @@
                     showAlert("Boy bilgisini mm cinsinden girin.", "error");
                     return;
                 }
-                order.length = String(length);
+                order.length = isKmOrder(order) ? String(length) : capCustomerLength(String(length), order.diameter);
             } else if (field === "quality") {
                 order.quality = upperText(value).trim();
                 order.analysisId = "";
@@ -6698,11 +7938,11 @@
                 if (!diameters[order.diameter]) {
                     order.diameter = getPriorityDiameter();
                 }
-                if (!order.length) {
+                if (!order.length || (!wasKmOrder && field === "customer")) {
                     order.length = KM_LENGTH;
                 }
                 if (!order.quality || (!wasKmOrder && field === "customer")) {
-                    order.quality = getKmDefaultQuality();
+                    order.quality = getKmDefaultQuality(order.diameter);
                 }
                 if (field === "diameter" || field === "customer") {
                     order.analysisId = "";
@@ -6720,7 +7960,7 @@
                 applyCustomerPortfolioDefaultsToOrder(order, { forceNote: true });
             }
 
-            if (!isKmOrder(order) && order.isManualPlanRow) {
+            if (order.isManualPlanRow) {
                 order.isUserTyped = true;
             }
 
@@ -6764,7 +8004,7 @@
             let order = pendingOrders.find(item => item.assignedSlot === casting.slotNumber && isKmOrder(item));
             if (order) {
                 if (!order.length) order.length = KM_LENGTH;
-                if (!order.quality) order.quality = getKmDefaultQuality();
+                if (!order.quality) order.quality = getKmDefaultQuality(order.diameter || casting.diameter);
                 if (!order.analysis && !order.customAnalysis && !order.analysisId) {
                     order.customAnalysis = getKmAnalysis(order.diameter || casting.diameter);
                     order.analysis = order.customAnalysis;
@@ -6777,7 +8017,7 @@
                 customer: "KM",
                 diameter: String(casting.diameter || getPriorityDiameter()),
                 length: KM_LENGTH,
-                quality: getKmDefaultQuality(),
+                quality: getKmDefaultQuality(casting.diameter),
                 analysisId: "",
                 analysis: getKmAnalysis(casting.diameter),
                 customAnalysis: getKmAnalysis(casting.diameter),
@@ -6824,7 +8064,8 @@
                 return "";
             }
 
-            return `<input class="plan-inline-input" type="number" min="1" step="1" value="${escapeHtml(order.length || "")}" onchange="updateAssignedOrderField('${order.id}', 'length', this.value)">`;
+            const displayLength = isKmOrder(order) ? (order.length || "") : capCustomerLength(order.length || "", order.diameter);
+            return `<input class="plan-inline-input" type="number" min="1" step="1" value="${escapeHtml(displayLength)}" onchange="updateAssignedOrderField('${order.id}', 'length', this.value)">`;
         }
 
         function buildCustomerQualityEditor(order) {
@@ -6954,6 +8195,7 @@
             const data = {
                 sourceSlot: slotNumber,
                 isKm,
+                isUserTyped: Boolean(order && isCustomizedKmOrder(order)),
                 customer: isKm ? "KM" : order ? upperText(order.customer || "") : upperText(casting.customer || ""),
                 diameter: order ? String(order.diameter || "") : String(casting.diameter || ""),
                 length: order ? String(order.length || "") : String(casting.length || ""),
@@ -6997,7 +8239,7 @@
                 customer: data && data.isKm ? "KM" : upperText(data && data.customer || ""),
                 diameter,
                 length: String(parseInt(data && data.length, 10) || (data && data.isKm ? KM_LENGTH : "")),
-                quality: upperText(data && data.quality || (data && data.isKm ? getKmDefaultQuality() : "")),
+                quality: upperText(data && data.quality || (data && data.isKm ? getKmDefaultQuality(diameter) : "")),
                 analysisId: "",
                 analysis: String(data && data.analysis || (data && data.isKm ? getKmAnalysis(diameter) : "")),
                 customAnalysis: String(data && data.analysis || (data && data.isKm ? getKmAnalysis(diameter) : "")),
@@ -7006,7 +8248,7 @@
                 pourCount: null,
                 assignedSlot: slotNumber,
                 isManualPlanRow: true,
-                isUserTyped: !(data && data.isKm)
+                isUserTyped: !(data && data.isKm) || Boolean(data && data.isUserTyped)
             };
         }
 
@@ -7470,7 +8712,7 @@
                     casting.isManualKm = true;
                     casting.customer = "KM";
                     casting.length = order.length || KM_LENGTH;
-                    casting.quality = upperText(order.quality || getKmDefaultQuality());
+                    casting.quality = upperText(order.quality || getKmDefaultQuality(order.diameter || casting.diameter));
                     casting.analysis = getOrderAnalysisValue(order) || getKmAnalysis(order.diameter || casting.diameter);
                     casting.note = order.note || "";
                     casting.customerCode = "KM";
@@ -7490,14 +8732,14 @@
                 casting.type = "customer";
                 casting.isManualKm = false;
                 casting.customer = upperText(order.customer);
-                casting.length = order.length;
+                casting.length = capCustomerLength(order.length, order.diameter);
                 casting.quality = upperText(order.quality);
                 casting.analysis = getOrderAnalysisValue(order);
                 casting.note = order.note || "";
                 casting.customerCode = getCustomerPlanCode(order.customer);
                 casting.orderCode = order.orderCode || "";
                 casting.diameter = order.diameter;
-                casting.status = `Müşteri: ${order.orderCode ? order.orderCode + " - " : ""}${upperText(order.customer)} - ${order.length}mm${order.quality ? " - " + upperText(order.quality) : ""}`;
+                casting.status = `Müşteri: ${order.orderCode ? order.orderCode + " - " : ""}${upperText(order.customer)} - ${casting.length}mm${order.quality ? " - " + upperText(order.quality) : ""}`;
             });
             savePendingOrders();
         }
@@ -8341,12 +9583,12 @@
             { bg: "#756a3f", fg: "#ffffff" },
             { bg: "#b6aa7a", fg: "#17140b" },
             { bg: "#665c37", fg: "#ffffff" },
-            { bg: "#10bde5", fg: "#050505" },
-            { bg: "#f6cfad", fg: "#050505" },
-            { bg: "#78df98", fg: "#050505" },
-            { bg: "#10bde5", fg: "#050505" },
-            { bg: "#ffbd00", fg: "#050505" },
-            { bg: "#78df98", fg: "#050505" }
+            { bg: "#f6cfad", fg: "#5d2e00" },
+            { bg: "#e8b4f8", fg: "#4a0070" },
+            { bg: "#78df98", fg: "#044a20" },
+            { bg: "#ffbd00", fg: "#4a3500" },
+            { bg: "#f9a8d4", fg: "#831843" },
+            { bg: "#c084fc", fg: "#3b0764" }
         ];
 
         // Ek renk temaları
@@ -8469,7 +9711,8 @@
                     base = preferred;
                 } else {
                     const pool = getReportQualityColorPool(castings[i]);
-                    base = pool[keyColorMap.size % pool.length];
+                    const poolUsedCount = [...keyColorMap.values()].filter(v => pool.includes(v)).length;
+                    base = pool[poolUsedCount % pool.length];
                     let attempts = 0;
                     while (forbidden.has(base) && attempts < pool.length) {
                         base = pool[(pool.indexOf(base) + 1) % pool.length];
@@ -8619,8 +9862,9 @@
             return kmAnalysisByDiameter[String(diameter)] || DEFAULT_KM_ANALYSIS_BY_DIAMETER[String(diameter)] || "";
         }
 
-        function getKmDefaultQuality() {
-            return normalizeQualityValue(kmDefaultQuality) || KM_QUALITY;
+        function getKmDefaultQuality(diameter) {
+            const q = diameter ? kmDefaultQualityByDiameter[String(diameter)] : null;
+            return normalizeQualityValue(q) || KM_QUALITY;
         }
 
         function formatAnalysisHtml(value) {
@@ -9063,25 +10307,41 @@
             renderStockSimDashboard();
         }
 
+        function getCurrentStockAmount(diameter, now = new Date()) {
+            const usage = Math.max(0, diameters[diameter]?.daily_usage || 0);
+            const baseTime = getStockBaseTime();
+            const elapsedHours = Math.max(0, (now - baseTime) / 3600000);
+            const enteredStock = Math.max(0, stocks[diameter] || 0) + getStockExtraAmount(diameter);
+            return Math.max(0, enteredStock - usage * elapsedHours / 24);
+        }
+
         function getSlotStockPreviewRows(slotNumber) {
             const targetCasting = castings.find(c => c.slotNumber === slotNumber);
             if (!targetCasting) return null;
             const now = new Date();
+            const baseTime = getStockBaseTime();
             const targetTime = targetCasting.scheduledTime;
-            const hours = Math.max(0, (targetTime - now) / 3600000);
+            // Geçmişte kalmış bir slot, güncel stoğu geriye götürmemeli.
+            const projectionTime = targetTime > now ? targetTime : now;
+            const hoursUntilSlot = Math.max(0, (projectionTime - now) / 3600000);
             const kmAdds = {};
             castings.forEach(c => {
-                if (c.slotNumber <= slotNumber && c.type === "own" && diameters[c.diameter]) {
+                if (
+                    c.slotNumber <= slotNumber &&
+                    c.type === "own" &&
+                    c.scheduledTime > baseTime &&
+                    diameters[c.diameter]
+                ) {
                     kmAdds[c.diameter] = (kmAdds[c.diameter] || 0) + OUR_CASTING_AMOUNT;
                 }
             });
             return Object.keys(diameters).map(diameter => {
                 const usage = Math.max(0, diameters[diameter].daily_usage || 0);
-                const stock = Math.max(0, stocks[diameter] || 0) + getStockExtraAmount(diameter);
-                const consumed = usage * hours / 24;
-                const rawProjectedStock = stock - consumed + (kmAdds[diameter] || 0);
+                const currentStock = getCurrentStockAmount(diameter, now);
+                const consumedUntilSlot = usage * hoursUntilSlot / 24;
+                const projectedStock = Math.max(0, currentStock - consumedUntilSlot + (kmAdds[diameter] || 0));
                 const emptyTime = usage > 0
-                    ? new Date(targetTime.getTime() + (rawProjectedStock / usage) * 24 * 3600000)
+                    ? new Date(projectionTime.getTime() + (projectedStock / usage) * 24 * 3600000)
                     : null;
                 const daysFromNow = emptyTime ? Math.max(0, (emptyTime - now) / (24 * 3600000)) : Number.POSITIVE_INFINITY;
                 const emptyText = emptyTime
@@ -9232,27 +10492,20 @@
         }
 
         function getStockDashboardRows() {
-            const baseTime = getStockBaseTime();
+            const now = new Date();
             return Object.keys(diameters).map(diameter => {
                 const usage = Math.max(0, diameters[diameter].daily_usage || 0);
-                const stock = Math.max(0, stocks[diameter] || 0) + getStockExtraAmount(diameter);
+                const stock = getCurrentStockAmount(diameter, now);
                 const days = usage > 0 ? stock / usage : Number.POSITIVE_INFINITY;
-                const emptyTime = Number.isFinite(days)
-                    ? new Date(baseTime.getTime() + days * 24 * 3600000)
-                    : null;
-                const emptyText = emptyTime
-                    ? emptyTime.toLocaleString("tr-TR", {
-                        weekday: "long",
-                        hour: "2-digit",
-                        minute: "2-digit"
-                    })
+                const emptyTime = usage > 0
+                    ? new Date(now.getTime() + days * 24 * 3600000)
                     : "Kullanım yok";
-                const displayText = emptyTime
-                    ? `${formatStockDays(days)} gün ${emptyText}`
-                    : emptyText;
-                const level = days <= 2 ? "is-danger" : days <= 3 ? "is-warning" : "is-good";
-                const marker = days <= 2 ? "!" : days <= 3 ? "!" : "✓";
-                return { diameter, emptyText: displayText, level, marker };
+                const label = emptyTime instanceof Date
+                    ? `${formatSlotStockDays(days)} gün ${emptyTime.toLocaleString("tr-TR", { weekday: "long", hour: "2-digit", minute: "2-digit" })}`
+                    : emptyTime;
+                const level = Number.isFinite(days) ? (days <= 2 ? "is-danger" : days <= 3 ? "is-warning" : "is-good") : "is-good";
+                const marker = level === "is-good" ? "✓" : "!";
+                return { diameter, emptyText: label, level, marker };
             });
         }
 
@@ -9304,10 +10557,13 @@
             if (!select || !container) return;
             const slotNumber = select.value ? parseInt(select.value, 10) : null;
             const baseTime = getStockBaseTime();
+            const now = new Date();
+            const hoursElapsed = Math.max(0, (now - baseTime) / 3600000);
             const rows = Object.keys(diameters).map(diameter => {
                 const usage = Math.max(0, diameters[diameter].daily_usage || 0);
                 const manualAdds = (stockSimCounts[diameter] || 0) * OUR_CASTING_AMOUNT;
-                let stock = Math.max(0, stocks[diameter] || 0) + getStockExtraAmount(diameter) + manualAdds;
+                const baseStock = Math.max(0, stocks[diameter] || 0) + getStockExtraAmount(diameter);
+                const currentStock = Math.max(0, baseStock - usage * hoursElapsed / 24);
                 let kmAdds = 0;
                 if (slotNumber) {
                     castings.forEach(c => {
@@ -9316,9 +10572,9 @@
                         }
                     });
                 }
-                const totalStock = stock + kmAdds;
+                const totalStock = currentStock + manualAdds + kmAdds;
                 const days = usage > 0 ? totalStock / usage : Number.POSITIVE_INFINITY;
-                const emptyTime = Number.isFinite(days) ? new Date(baseTime.getTime() + days * 24 * 3600000) : null;
+                const emptyTime = Number.isFinite(days) ? new Date(now.getTime() + days * 24 * 3600000) : null;
                 const label = emptyTime
                     ? `${formatSlotStockDays(days)} gün ${emptyTime.toLocaleString("tr-TR", { weekday: "long", hour: "2-digit", minute: "2-digit" })}`
                     : "Kullanım yok";
@@ -9350,13 +10606,16 @@
                         }
                     });
                 }
+                const now = new Date();
+                const hoursElapsed = Math.max(0, (now - baseTime) / 3600000);
                 Object.keys(diameters).forEach(diameter => {
                     const usage = Math.max(0, diameters[diameter].daily_usage || 0);
-                    const stock = Math.max(0, stocks[diameter] || 0);
+                    const baseStock = Math.max(0, stocks[diameter] || 0) + getStockExtraAmount(diameter);
+                    const currentStock = Math.max(0, baseStock - usage * hoursElapsed / 24);
                     const added = (stockSimCounts[diameter] || 0) * OUR_CASTING_AMOUNT;
-                    const projectedStock = stock + getStockExtraAmount(diameter) + added + (slotKmAdds[diameter] || 0);
+                    const projectedStock = currentStock + added + (slotKmAdds[diameter] || 0);
                     const days = usage > 0 ? projectedStock / usage : Number.POSITIVE_INFINITY;
-                    const emptyTime = Number.isFinite(days) ? new Date(baseTime.getTime() + days * 24 * 3600000) : null;
+                    const emptyTime = Number.isFinite(days) ? new Date(now.getTime() + days * 24 * 3600000) : null;
                     const emptyText = emptyTime
                         ? `${formatStockDays(days)} gün ${emptyTime.toLocaleString("tr-TR", { weekday: "long", hour: "2-digit", minute: "2-digit" })}`
                         : "Kullanım yok";
@@ -9378,24 +10637,9 @@
         function updateStockDashboard() {
             const dashboard = document.getElementById("stockDashboard");
             if (!dashboard) return;
-            const now = new Date();
-            const baseTime = getStockBaseTime();
-            // Stok saati geçmişte ise tüketimi düş, gelecekteyse düşme
-            const elapsedHours = Math.max(0, (now - baseTime) / 3600000);
-            const rows = Object.keys(diameters).map(diameter => {
-                const usage = Math.max(0, diameters[diameter].daily_usage || 0);
-                const rawStock = Math.max(0, stocks[diameter] || 0) + getStockExtraAmount(diameter);
-                const consumed = usage * elapsedHours / 24;
-                const stock = Math.max(0, rawStock - consumed);
-                const days = usage > 0 ? stock / usage : Number.POSITIVE_INFINITY;
-                const emptyTime = usage > 0 ? new Date(now.getTime() + days * 24 * 3600000) : null;
-                const label = emptyTime
-                    ? `${formatSlotStockDays(days)} gün ${emptyTime.toLocaleString("tr-TR", { weekday: "long", hour: "2-digit", minute: "2-digit" })}`
-                    : "Kullanım yok";
-                const level = Number.isFinite(days) ? (days <= 2 ? "is-danger" : days <= 3 ? "is-warning" : "is-good") : "is-good";
-                const marker = level === "is-good" ? "✓" : "!";
-                return `<div class="stock-dashboard-row ${level}"><strong>${diameter}mm</strong><span>${label}</span><b>${marker}</b></div>`;
-            });
+            const rows = getStockDashboardRows().map(item =>
+                `<div class="stock-dashboard-row ${item.level}"><strong>${item.diameter}mm</strong><span>${item.emptyText}</span><b>${item.marker}</b></div>`
+            );
             const existing = dashboard.querySelectorAll(".stock-dashboard-row");
             existing.forEach(el => el.remove());
             const copyBtn = dashboard.querySelector(".stock-copy-button");
@@ -9872,8 +11116,10 @@
             });
         }
 
-        function createPlanImageCanvas(logoImage) {
-            const reportCastings = getReportCastings();
+        function createPlanImageCanvas(logoImage, slotLimit) {
+            const reportCastings = slotLimit != null
+                ? getVisibleManualCastings().filter(c => c.slotNumber <= slotLimit && !isEmptyReportRow(c))
+                : getReportCastings();
             const includeNote = false;
             const headers = getReportHeaders({ includeDateTime: true, includeNote: false, showCustomerName: true });
             const rows = buildReportRows(reportCastings, { includeDateTime: true, includeNote: false, showCustomerName: true });
@@ -9890,13 +11136,13 @@
             const sheetY = 10;
             // width determined after column auto-sizing below; placeholder for probe
             const sheetWidthMin = includeNote ? 900 : 750;
-            const sheetWidth = sheetWidthMin; // updated after column calc if needed
             const padding = 24;
             const logoBoxW = 190;
             const logoBoxH = 70;
             const headerHeight = 110;
             const tableTop = sheetY + headerHeight;
-            const ROW_FONT = "700 14px Arial, sans-serif";
+            const isBoldMode = localStorage.getItem('planOutputBoldMode') === '1';
+            const ROW_FONT = `${isBoldMode ? "700" : "400"} 14px Arial, sans-serif`;
             const LINE_H = 17;
             // Auto-size columns based on actual content
             const sizeCanvas = document.createElement("canvas");
@@ -9918,7 +11164,8 @@
             const columns = rawCols.map(w => Math.floor(w * scale2));
             const columnDelta = finalSheetWidth - columns.reduce((s, w) => s + w, 0);
             if (columns.length) columns[columns.length - 1] += columnDelta;
-            const width = finalSheetWidth + sheetX * 2;
+            const sheetWidth = finalSheetWidth;
+            const width = sheetWidth + sheetX * 2;
             const canvas = document.createElement("canvas");
             const probe = canvas.getContext("2d");
             probe.font = ROW_FONT;
@@ -10063,6 +11310,12 @@
         }
 
         async function copyPlanShareText() {
+            const savedSlotCount = parseInt(localStorage.getItem('planOutputSlotCount'), 10);
+            const limit = Number.isFinite(savedSlotCount) && savedSlotCount > 0 ? savedSlotCount : null;
+            await copyPlanShareTextWithLimit(limit);
+        }
+
+        async function copyPlanShareTextWithLimit(slotLimit) {
             try {
                 let logoImage = null;
                 try {
@@ -10073,7 +11326,8 @@
                         img.src = REPORT_LOGO_SRC;
                     });
                 } catch (_) {}
-                if (await copyCanvasImage(createPlanImageCanvas(logoImage))) {
+                if (await copyCanvasImage(createPlanImageCanvas(logoImage, slotLimit))) {
+                    scheduleCloudPlanSync();
                     showAlert("Üretim planı görsel olarak kopyalandı.", "success");
                     return;
                 }
@@ -10183,24 +11437,38 @@
                         body.bold-mode td { font-weight: 700; }
                         .btn-bold { background: #f1f5f9; border: 0; border-radius: 8px; color: #334155; cursor: pointer; font-size: 13px; font-weight: 800; padding: 9px 14px; transition: background 0.15s; }
                         .btn-bold.active { background: #101820; color: #ffffff; }
+                        .btn-copy { background: #1e40af; border: 0; border-radius: 8px; color: #ffffff; cursor: pointer; font-size: 13px; font-weight: 800; padding: 9px 14px; }
                         @media print {
                             body { background: #ffffff; padding: 0; gap: 0; }
                             .print-preview-toolbar { display: none; }
-                            .sheet { width: 100%; border: 0; border-radius: 0; box-shadow: none; break-after: page; page-break-after: always; }
+                            .sheet {
+                                width: 100%;
+                                height: 283mm;
+                                max-height: 283mm;
+                                overflow: hidden;
+                                border: 0;
+                                border-radius: 0;
+                                box-shadow: none;
+                                break-inside: avoid;
+                                page-break-inside: avoid;
+                                break-after: page;
+                                page-break-after: always;
+                            }
                             .sheet:last-child { break-after: auto; page-break-after: auto; }
                             .sheet table { width: 100%; }
-                            .sheet tbody tr { height: calc((100vh - 100px) / 14); }
-                            .hero { gap: 10px; padding: 10px 16px; }
-                            .hero-continuation { padding: 5px 16px; }
-                            .report-logo { height: 56px; padding: 4px 8px; width: 170px; }
-                            .report-logo img { max-height: 48px; max-width: 154px; }
+                            .sheet thead { display: table-header-group; }
+                            .sheet tbody tr { height: 16.5mm; max-height: 16.5mm; }
+                            .hero { gap: 10px; height: 20mm; padding: 4mm 5mm; }
+                            .hero-continuation { height: 14mm; padding: 2mm 5mm; }
+                            .report-logo { height: 12mm; padding: 1mm 2mm; width: 45mm; }
+                            .report-logo img { max-height: 10mm; max-width: 41mm; }
                             h1 { font-size: 20px; margin-bottom: 2px; }
                             .hero-continuation h1 { font-size: 15px; }
                             .meta { font-size: 11px; }
                             table, table.no-note { font-size: 14px; line-height: 1.15; width: 100%; }
                             th { font-size: 12px; padding: 1px 4px; text-align: center; }
                             th:nth-child(n+7) { text-align: left; }
-                            td { padding: 1px 4px; vertical-align: middle; text-align: center; min-height: 0; }
+                            td { height: 16.5mm; max-height: 16.5mm; overflow: hidden; padding: 1px 4px; vertical-align: middle; text-align: center; min-height: 0; }
                             td:nth-child(n+7) { text-align: left; }
                             tr { break-inside: avoid; page-break-inside: avoid; }
                             .hero { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
@@ -10279,6 +11547,7 @@
 
                         applyColorTheme(colorTheme);
                         renderSheets();
+
                     <\/script>
                 </body>
                 </html>
@@ -10297,7 +11566,11 @@
             );
         }
 
-        function createPlanOnlyReport() {
+        async function createPlanOnlyReport() {
+            if (window.networkStore && window.networkStore.openReportWindow) {
+                await window.networkStore.openReportWindow(createPlanOnlyReportHtml());
+                return;
+            }
             const reportWindow = openSizedReportWindow();
             if (!reportWindow) {
                 showAlert("Plan çıktısı penceresi açılamadı. Tarayıcı izinlerini kontrol edin.", "error");
@@ -10655,6 +11928,7 @@
         // ── Ağ paylaşım sistemi ──────────────────────────────────────────────────
 
         let networkSyncDebounceTimer = null;
+        let cloudPlanSyncDebounceTimer = null;
 
         function getNetworkStatusEl() {
             return document.getElementById('networkStatusIndicator');
@@ -10680,10 +11954,68 @@
                 completedCastings: JSON.parse(localStorage.getItem(COMPLETED_CASTING_STORAGE_KEY) || "[]"),
                 analysisPortfolio: JSON.parse(localStorage.getItem(ANALYSIS_PORTFOLIO_STORAGE_KEY) || "[]"),
                 kmAnalysisSettings: JSON.parse(localStorage.getItem(KM_ANALYSIS_STORAGE_KEY) || "{}"),
+                customerMaxLengths: JSON.parse(localStorage.getItem(CUSTOMER_MAX_LENGTH_STORAGE_KEY) || "{}"),
                 qualityPortfolio: JSON.parse(localStorage.getItem(QUALITY_PORTFOLIO_STORAGE_KEY) || "[]"),
                 deletedDefaults: JSON.parse(localStorage.getItem(DELETED_DEFAULTS_KEY) || "[]"),
                 lastModified: ts,
             };
+        }
+
+        function collectCloudPlanData() {
+            // Mobil görünüm "Planı Kopyala" satır sınırından bağımsızdır.
+            // Ana plan listesindeki bütün dolu satırları aynı rapor biçimiyle gönderir.
+            const reportCastings = getVisibleManualCastings()
+                .filter(casting => !isEmptyReportRow(casting));
+            const headers = getReportHeaders({
+                includeDateTime: true,
+                includeNote: false,
+                showCustomerName: true,
+            });
+            const values = buildReportRows(reportCastings, {
+                includeDateTime: true,
+                includeNote: false,
+                showCustomerName: true,
+            });
+            const palette = getSelectedReportPalette();
+            const colorIndices = assignReportColors(reportCastings);
+            const rows = values.map((cells, index) => {
+                const casting = reportCastings[index];
+                const colors = casting.type === "own" && isKmAnalysisDefault(casting)
+                    ? getReportRowColors(casting)
+                    : palette[Math.abs(colorIndices[index] || 0) % palette.length] || palette[0];
+                return { cells, background: colors.bg, foreground: colors.fg };
+            });
+            const now = new Date();
+            return {
+                title: "Üretim Planı",
+                company: "Kenan Metal",
+                source: "plan-list",
+                totalRows: rows.length,
+                generatedAt: now.toISOString(),
+                generatedAtText: now.toLocaleString("tr-TR", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                }),
+                headers,
+                rows,
+            };
+        }
+
+        async function syncCloudPlan() {
+            if (!window.networkStore || !window.networkStore.uploadCloudPlan) return;
+            try {
+                await window.networkStore.uploadCloudPlan(collectCloudPlanData());
+            } catch (_) {
+                // Bulut erişimi ana uygulamanın yerel/ağ çalışmasını engellemez.
+            }
+        }
+
+        function scheduleCloudPlanSync() {
+            if (cloudPlanSyncDebounceTimer) clearTimeout(cloudPlanSyncDebounceTimer);
+            cloudPlanSyncDebounceTimer = setTimeout(() => syncCloudPlan(), 1200);
         }
 
         function applyNetworkData(data, { forceOrders = false } = {}) {
@@ -10704,6 +12036,7 @@
             if (data.completedCastings && networkIsNewer) localStorage.setItem(COMPLETED_CASTING_STORAGE_KEY, JSON.stringify(data.completedCastings));
             if (data.analysisPortfolio && networkIsNewer) localStorage.setItem(ANALYSIS_PORTFOLIO_STORAGE_KEY, JSON.stringify(data.analysisPortfolio));
             if (data.kmAnalysisSettings && networkIsNewer) localStorage.setItem(KM_ANALYSIS_STORAGE_KEY, JSON.stringify(data.kmAnalysisSettings));
+            if (data.customerMaxLengths && networkIsNewer) localStorage.setItem(CUSTOMER_MAX_LENGTH_STORAGE_KEY, JSON.stringify(data.customerMaxLengths));
             if (data.qualityPortfolio && networkIsNewer) localStorage.setItem(QUALITY_PORTFOLIO_STORAGE_KEY, JSON.stringify(data.qualityPortfolio));
             if (data.deletedDefaults && networkIsNewer) localStorage.setItem(DELETED_DEFAULTS_KEY, JSON.stringify(data.deletedDefaults));
             // Ağ verisi uygulandıysa yerel timestamp'i güncelle
@@ -10759,6 +12092,7 @@
             localStorage.setItem(LOCAL_LAST_MODIFIED_KEY, String(Date.now()));
             if (networkSyncDebounceTimer) clearTimeout(networkSyncDebounceTimer);
             networkSyncDebounceTimer = setTimeout(() => syncToNetwork(), 300);
+            scheduleCloudPlanSync();
         }
 
         window.addEventListener('beforeunload', () => {
@@ -10890,6 +12224,7 @@
             loadAnalysisPortfolio();
             loadQualityPortfolio();
             loadKmAnalysisSettings();
+            loadCustomerMaxLengths();
             updatePortfolioDatalists();
             renderQualityPortfolioList();
             renderAnalysisPortfolioList();
@@ -10902,6 +12237,18 @@
         // ────────────────────────────────────────────────────────────────────────
 
         window.addEventListener('load', () => {
+            if (window.networkStore && window.networkStore.getAppVersion) {
+                window.networkStore.getAppVersion().then(version => {
+                    const badge = document.getElementById("appVersionBadge");
+                    if (badge) {
+                        badge.textContent = `Sürüm ${version}`;
+                        badge.title = `Yüklü Döküm Planlayıcı sürümü: ${version}`;
+                    }
+                }).catch(() => {
+                    const badge = document.getElementById("appVersionBadge");
+                    if (badge) badge.textContent = "Sürüm bilgisi yok";
+                });
+            }
             initializeOrderBoardHtml();
             loadPlannerSettings();
             const maxSlotsDisplay = document.getElementById("maxSlotsDisplay");
@@ -10918,6 +12265,7 @@
             loadAnalysisPortfolio();
             loadQualityPortfolio();
             loadKmAnalysisSettings();
+            loadCustomerMaxLengths();
             updatePortfolioDatalists();
             renderQualityPortfolioList();
             renderAnalysisPortfolioList();
@@ -10954,6 +12302,24 @@
                         window.scrollBy(0, e.deltaY);
                     }
                 }, { passive: false });
+            }
+        });
+
+        (function() {
+            const bc = new BroadcastChannel('plan-copy');
+            bc.onmessage = (event) => {
+                if (event.data && event.data.type === 'copyPlanWithLimit') {
+                    copyPlanShareTextWithLimit(event.data.limit);
+                }
+            };
+        })();
+
+        window.addEventListener('storage', (event) => {
+            if (event.key === 'copyPlanTrigger' && event.newValue) {
+                try {
+                    const { limit } = JSON.parse(event.newValue);
+                    copyPlanShareTextWithLimit(limit);
+                } catch (_) {}
             }
         });
 
@@ -11001,6 +12367,39 @@
             }
         });
         document.addEventListener("wheel", preventPlanNumberSpin, { passive: false });
+
+        function openCustomerDrawer() {
+            const overlay = document.getElementById('customerDrawerOverlay');
+            const drawer = document.getElementById('customerDrawer');
+            if (!drawer) return;
+            overlay.style.display = 'block';
+            drawer.classList.add('open');
+            document.addEventListener('keydown', _drawerEscHandler);
+        }
+
+        function closeCustomerDrawer() {
+            const overlay = document.getElementById('customerDrawerOverlay');
+            const drawer = document.getElementById('customerDrawer');
+            if (!drawer) return;
+            drawer.classList.remove('open');
+            overlay.style.display = 'none';
+            document.removeEventListener('keydown', _drawerEscHandler);
+        }
+
+        function _drawerEscHandler(e) {
+            if (e.key === 'Escape') closeCustomerDrawer();
+        }
     </script>
+
+    <div id="customerDrawerOverlay" style="display:none" onclick="closeCustomerDrawer()"></div>
+    <div id="customerDrawer" class="customer-drawer">
+        <div class="customer-drawer-header">
+            <span class="customer-drawer-title">Müşteriler</span>
+            <button type="button" class="customer-drawer-close" onclick="closeCustomerDrawer()">✕</button>
+        </div>
+        <div id="customerDrawerBody" class="customer-drawer-body">
+            <div id="customerPortfolioBox"></div>
+        </div>
+    </div>
 </body>
 </html>

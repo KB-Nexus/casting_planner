@@ -1,0 +1,15 @@
+name = "kenan-metal-casting-plan"
+main = "src/worker.js"
+compatibility_date = "2026-06-18"
+workers_dev = true
+preview_urls = false
+
+[[d1_databases]]
+binding = "DB"
+database_name = "casting-plan"
+database_id = "7f9768ce-13e6-4059-9929-05ceee9e4b52"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "UPDATES"
+bucket_name = "casting-planner-updates"
