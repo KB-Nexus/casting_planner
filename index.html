@@ -12296,7 +12296,8 @@
                     return;
                 }
                 if (result.data) {
-                    applyNetworkData(result.data);
+                    // Açılışta ağ verisi her zaman uygulanır (lock sistemi eş zamanlı düzenlemeyi engeller)
+                    applyNetworkData(result.data, { forceOrders: true });
                 }
                 setNetworkStatus('ok', 'Ağ bağlı');
             } catch (e) {
