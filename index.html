@@ -964,30 +964,56 @@
 
         .customer-tabs {
             display: flex;
-            gap: 6px;
-            margin-bottom: 10px;
+            gap: 0;
+            background: #ffffff;
+            border-bottom: 2px solid #e8edf3;
+            padding: 0 16px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            flex-shrink: 0;
         }
+        .customer-tabs::-webkit-scrollbar { display: none; }
 
         .customer-tab {
-            background: #ffffff;
-            border: 1px solid #cbd5e1;
+            background: transparent;
+            border: none;
+            border-bottom: 2.5px solid transparent;
+            border-radius: 0;
             box-shadow: none;
-            color: #334155;
+            color: #64748b;
+            cursor: pointer;
             font-size: 12px;
-            margin: 0;
-            min-height: 32px;
-            padding: 6px 10px;
+            font-weight: 700;
+            letter-spacing: 0.15px;
+            margin: 0 0 -2px 0;
+            min-height: 0;
+            padding: 12px 14px 11px;
+            position: relative;
             text-transform: none;
+            transition: color 0.15s, border-color 0.15s, background 0.15s;
+            white-space: nowrap;
             width: auto;
+        }
+        .customer-tab:hover {
+            color: #334155;
+            background: #f8fafc;
+            box-shadow: none;
+            transform: none;
         }
 
         .customer-tab.active {
-            background: #0f766e;
-            color: #ffffff;
+            background: transparent;
+            border-bottom-color: #0f766e;
+            color: #0f766e;
+            font-weight: 800;
         }
 
         .customer-tab-panel[hidden] {
             display: none;
+        }
+
+        .customer-tab-panel-inner {
+            padding: 16px;
         }
 
         .left-tools-panel {
@@ -996,7 +1022,7 @@
             margin: 12px 0;
             overflow: hidden;
             overflow-anchor: none;
-            padding: 10px;
+            padding: 0;
         }
 
         .left-tools-panel .customer-tab-panel {
@@ -1006,15 +1032,13 @@
         }
 
         .left-tools-panel .customer-tabs {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            padding: 0 8px;
         }
 
         .left-tools-panel .customer-tab {
             font-size: 11px;
             min-width: 0;
-            padding: 6px 4px;
-            width: 100%;
+            padding: 9px 8px 8px;
         }
 
         .left-tools-panel .km-analysis-grid {
@@ -1504,33 +1528,50 @@
         }
 
         .km-analysis-card {
-            background: #f8fafc;
-            border: 1px solid #d9e4e2;
-            border-radius: 10px;
+            background: #ffffff;
+            border: 1px solid #e2eaf0;
+            border-radius: 12px;
+            border-top: 3px solid #f59e0b;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
             display: grid;
-            gap: 10px;
+            gap: 12px;
             margin-bottom: 12px;
-            padding: 10px;
+            padding: 12px;
+        }
+
+        .km-analysis-card-title {
+            align-items: center;
+            display: flex;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 800;
+            color: #92400e;
         }
 
         details.compact-panel {
-            background: #f8fafc;
-            border: 1px solid #d9e4e2;
-            border-radius: 8px;
+            background: #ffffff;
+            border: 1px solid #e2eaf0;
+            border-radius: 10px;
             margin-bottom: 8px;
             overflow: hidden;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
         }
 
         details.compact-panel > summary {
             align-items: center;
-            color: #0b3b36;
+            background: linear-gradient(135deg, #fffbeb 0%, #fef9f0 100%);
+            color: #78350f;
             cursor: pointer;
             display: flex;
             font-size: 12px;
-            font-weight: 900;
+            font-weight: 800;
             justify-content: space-between;
             list-style: none;
-            padding: 10px 12px;
+            padding: 11px 14px;
+            transition: background 0.15s;
+        }
+        details.compact-panel > summary:hover {
+            background: linear-gradient(135deg, #fef3c7 0%, #fef9f0 100%);
         }
 
         details.compact-panel > summary::-webkit-details-marker {
@@ -1538,24 +1579,32 @@
         }
 
         details.compact-panel > summary::after {
+            background: rgba(245,158,11,0.15);
+            border-radius: 50%;
+            color: #f59e0b;
             content: "+";
-            font-size: 17px;
-            line-height: 1;
+            font-size: 16px;
+            font-weight: 900;
+            height: 22px;
+            line-height: 22px;
+            text-align: center;
+            width: 22px;
+            flex-shrink: 0;
         }
 
         details.compact-panel[open] > summary::after {
-            content: "-";
+            content: "−";
         }
 
         .compact-panel-body {
-            border-top: 1px solid #d9e4e2;
+            border-top: 1px solid #fde68a;
             display: grid;
             gap: 10px;
-            padding: 10px;
+            padding: 12px;
         }
 
         .km-analysis-card strong {
-            color: #0b3b36;
+            color: #78350f;
             font-size: 12px;
             font-weight: 850;
         }
@@ -1568,25 +1617,34 @@
 
         .km-analysis-field {
             display: grid;
-            gap: 5px;
+            gap: 4px;
         }
 
         .km-analysis-field label {
-            color: #39534f;
-            font-size: 11px;
-            font-weight: 850;
+            color: #92400e;
+            font-size: 10.5px;
+            font-weight: 800;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
         }
 
         .km-analysis-field input,
         .km-analysis-field textarea {
-            background: #ffffff;
-            border: 1px solid #c9d6d4;
+            background: #fffbeb;
+            border: 1px solid #fde68a;
             border-radius: 8px;
-            color: #12201e;
+            color: #1c1917;
             font-size: 12px;
             font-weight: 650;
-            padding: 7px 8px;
+            padding: 7px 9px;
             width: 100%;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .km-analysis-field input:focus,
+        .km-analysis-field textarea:focus {
+            border-color: #f59e0b;
+            box-shadow: 0 0 0 3px rgba(245,158,11,0.12);
+            outline: none;
         }
 
         .km-analysis-field input {
@@ -1618,32 +1676,48 @@
         .quality-chip,
         .analysis-quality-chip {
             align-items: center;
-            background: #eef6f5;
-            border: 1px solid #cfe2df;
-            border-radius: 999px;
-            color: #0b3b36;
+            background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
+            border: 1px solid #93c5fd;
+            border-radius: 8px;
+            color: #1e40af;
             display: inline-flex;
             font-size: 11px;
-            font-weight: 850;
+            font-weight: 800;
             gap: 5px;
-            padding: 5px 8px;
+            letter-spacing: 0.3px;
+            padding: 5px 10px;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .quality-chip:hover,
+        .analysis-quality-chip:hover {
+            background: linear-gradient(135deg, #bfdbfe 0%, #dbeafe 100%);
+            border-color: #60a5fa;
         }
 
         .quality-chip button {
             background: transparent;
             border: 0;
             box-shadow: none;
-            color: #b91c1c;
-            font-size: 12px;
+            color: #1d4ed8;
+            font-size: 13px;
             margin: 0;
             min-height: 0;
+            opacity: 0.5;
             padding: 0;
             text-transform: none;
             width: auto;
+            transition: opacity 0.15s;
+        }
+        .quality-chip button:hover {
+            opacity: 1;
+            color: #b91c1c;
+            background: transparent;
+            box-shadow: none;
+            transform: none;
         }
 
         .analysis-search {
-            margin-bottom: 8px;
+            margin-bottom: 12px;
         }
 
         .analysis-search-row {
@@ -1652,16 +1726,43 @@
         }
 
         .analysis-search-row input {
+            background: #ffffff;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            color: #1e293b;
+            font-size: 12.5px;
+            min-height: 40px;
             min-width: 0;
+            padding: 9px 12px;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .analysis-search-row input:focus {
+            border-color: #0f766e;
+            box-shadow: 0 0 0 3px rgba(15,118,110,0.1);
+            outline: none;
         }
 
         .analysis-search-row button {
+            background: linear-gradient(135deg, #0f766e, #0a5652);
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(15,118,110,0.25);
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 700;
             margin: 0;
-            min-height: 36px;
-            padding: 7px 10px;
+            min-height: 40px;
+            padding: 9px 14px;
             text-transform: none;
+            transition: all 0.15s;
             width: auto;
             white-space: nowrap;
+        }
+        .analysis-search-row button:hover {
+            background: linear-gradient(135deg, #14b8a6, #0f766e);
+            box-shadow: 0 4px 12px rgba(15,118,110,0.32);
+            transform: translateY(-1px);
         }
 
         .analysis-portfolio-list {
@@ -1669,24 +1770,32 @@
             gap: 8px;
             max-height: 340px;
             overflow-y: auto;
-            padding-right: 4px;
+            padding-right: 2px;
         }
 
         .analysis-card {
             background: #ffffff;
-            border: 1px solid #d9e4e2;
-            border-left: 5px solid #0f766e;
-            border-radius: 8px;
+            border: 1px solid #e2eaf0;
+            border-left: 4px solid #14b8a6;
+            border-radius: 10px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
             cursor: pointer;
             display: grid;
             gap: 5px;
-            padding: 9px 44px 9px 9px;
+            padding: 10px 44px 10px 12px;
             position: relative;
+            transition: box-shadow 0.15s, border-left-color 0.15s, transform 0.1s;
+        }
+        .analysis-card:hover {
+            box-shadow: 0 4px 14px rgba(20,184,166,0.13);
+            border-left-color: #0f766e;
+            transform: translateX(2px);
         }
 
         .analysis-card.selected {
             border-color: #0f766e;
-            box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.12);
+            border-left-color: #0f766e;
+            box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.15), 0 4px 14px rgba(15,118,110,0.08);
         }
 
         .customer-code-row {
@@ -1741,14 +1850,15 @@
         }
 
         .selected-customer-panel {
-            background: #ffffff;
-            border: 1px solid #c9d6d4;
-            border-left: 5px solid #0f766e;
-            border-radius: 8px;
+            background: linear-gradient(135deg, #f0fdf9 0%, #ecfdf5 100%);
+            border: 1px solid #a7f3d0;
+            border-left: 4px solid #10b981;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(16,185,129,0.1);
             display: grid;
-            gap: 8px;
-            margin-bottom: 10px;
-            padding: 10px;
+            gap: 10px;
+            margin-bottom: 14px;
+            padding: 12px 14px;
         }
 
         .selected-customer-header {
@@ -1759,8 +1869,9 @@
         }
 
         .selected-customer-panel h4 {
-            color: #0f172a;
-            font-size: 13px;
+            color: #064e3b;
+            font-size: 14px;
+            font-weight: 800;
             margin: 0;
         }
 
@@ -1774,13 +1885,20 @@
         .customer-analysis-add input,
         .customer-analysis-add textarea {
             background: #ffffff;
-            border: 1px solid #c9d6d4;
-            border-radius: 8px;
+            border: 1.5px solid #d1fae5;
+            border-radius: 9px;
             color: #12201e;
             font-size: 12px;
             font-weight: 650;
             min-height: 34px;
-            padding: 7px 8px;
+            padding: 7px 9px;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .customer-analysis-add input:focus,
+        .customer-analysis-add textarea:focus {
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16,185,129,0.1);
+            outline: none;
         }
 
         .customer-analysis-add input {
@@ -1798,10 +1916,22 @@
         }
 
         .customer-analysis-add button {
+            background: linear-gradient(135deg, #10b981, #059669) !important;
+            border: none !important;
+            border-radius: 9px !important;
+            box-shadow: 0 2px 8px rgba(16,185,129,0.25) !important;
+            color: #ffffff !important;
+            font-weight: 700 !important;
             margin: 0;
             min-height: 34px;
-            padding: 6px 12px;
+            padding: 6px 14px;
+            transition: all 0.15s !important;
             width: auto;
+        }
+        .customer-analysis-add button:hover {
+            background: linear-gradient(135deg, #059669, #047857) !important;
+            box-shadow: 0 4px 12px rgba(16,185,129,0.32) !important;
+            transform: translateY(-1px) !important;
         }
 
         .customer-meta-input {
@@ -1818,25 +1948,34 @@
         }
 
         .customer-delete-button {
-            background: #ffffff;
-            border: 1px solid #fecaca;
+            background: #fff5f5;
+            border: 1px solid #fca5a5;
+            border-radius: 8px;
             box-shadow: none;
-            color: #b91c1c;
+            color: #dc2626;
             font-size: 11px;
+            font-weight: 700;
             margin: 0;
             min-height: 30px;
-            padding: 5px 8px;
+            padding: 5px 10px;
             text-transform: none;
+            transition: background 0.15s, border-color 0.15s;
             width: auto;
+        }
+        .customer-delete-button:hover {
+            background: #fee2e2;
+            border-color: #f87171;
+            box-shadow: none;
+            transform: none;
         }
 
         .customer-rename-button {
             align-items: center;
-            background: #f1f5f9;
-            border: 1px solid #cbd5e1;
+            background: #f0fdf9;
+            border: 1px solid #6ee7b7;
             border-radius: 7px;
             box-shadow: none;
-            color: #334155;
+            color: #065f46;
             display: inline-flex;
             justify-content: center;
             margin: 0;
@@ -1845,10 +1984,12 @@
             padding: 4px;
             transform: none;
             width: 30px;
+            transition: background 0.15s, border-color 0.15s;
         }
 
         .customer-rename-button:hover {
-            background: #e2e8f0;
+            background: #d1fae5;
+            border-color: #34d399;
             box-shadow: none;
             transform: none;
         }
@@ -1873,15 +2014,30 @@
         .analysis-card strong {
             color: #0f172a;
             font-size: 13px;
+            font-weight: 800;
         }
 
         .analysis-card pre {
-            color: #334155;
+            color: #475569;
             font-family: inherit;
-            font-size: 12px;
-            line-height: 1.35;
+            font-size: 11.5px;
+            line-height: 1.4;
             margin: 0;
             white-space: pre-wrap;
+        }
+
+        .analysis-card-avatar {
+            align-items: center;
+            border-radius: 8px;
+            color: #ffffff;
+            display: inline-flex;
+            flex-shrink: 0;
+            font-size: 11px;
+            font-weight: 900;
+            height: 28px;
+            justify-content: center;
+            letter-spacing: 0.5px;
+            width: 28px;
         }
 
         .analysis-variant {
@@ -1980,14 +2136,15 @@
         }
 
         .new-customer-panel {
-            background: #ffffff;
-            border: 1px solid #c9d6d4;
-            border-left: 5px solid #0f766e;
-            border-radius: 8px;
+            background: linear-gradient(135deg, #f0fdf9 0%, #f8fafc 100%);
+            border: 1px solid #a7f3d0;
+            border-left: 4px solid #10b981;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(16,185,129,0.08);
             display: grid;
-            gap: 8px;
-            margin-bottom: 10px;
-            padding: 10px;
+            gap: 10px;
+            margin-bottom: 12px;
+            padding: 12px 14px;
         }
 
         .new-customer-grid {
@@ -3316,10 +3473,27 @@
         }
         .customer-drawer-close:hover { background: rgba(255,255,255,0.22); }
         .customer-drawer-body {
+            background: #f3f7fb;
             flex: 1;
             min-height: 0;
             overflow-y: auto;
             padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .customer-drawer-body > #customerPortfolioBox {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+        .customer-drawer-body .customer-tab-panel {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+        }
+        .customer-drawer-body .customer-tab-panel-inner {
+            padding: 18px 20px;
         }
         .customer-drawer-body .analysis-portfolio-list {
             max-height: none;
@@ -4240,11 +4414,39 @@
 
     /* Customer drawer */
     .customer-drawer {
-        background: #f8fafc !important;
+        background: #f1f5fa !important;
         border-left: 1px solid #e2e8f0 !important;
+        box-shadow: -12px 0 40px rgba(0,0,0,0.22) !important;
     }
     .customer-drawer-header {
         background: linear-gradient(135deg, #0f1f30 0%, #08121e 100%) !important;
+        border-bottom: 1px solid rgba(20,184,166,0.18) !important;
+    }
+    .customer-drawer-title {
+        font-size: 16px !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.5px !important;
+    }
+    .customer-tabs {
+        background: #ffffff !important;
+        border-bottom: 2px solid #e2eaf2 !important;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04) !important;
+    }
+    .customer-tab {
+        color: #64748b !important;
+        font-size: 12.5px !important;
+        font-weight: 700 !important;
+    }
+    .customer-tab.active {
+        color: #0f766e !important;
+        border-bottom-color: #0f766e !important;
+        background: transparent !important;
+    }
+    .customer-drawer-body {
+        background: #f1f5fa !important;
+    }
+    .customer-tab-panel-inner {
+        padding: 18px 20px !important;
     }
 
     /* ════════════════════════════════════════════════════════════
@@ -4273,24 +4475,61 @@
     }
     .analysis-card {
         background: #ffffff !important;
-        border: 1px solid #e8edf2 !important;
+        border: 1px solid #e0eaf2 !important;
         border-left: 4px solid #14b8a6 !important;
         border-radius: 10px !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
-        transition: box-shadow 0.18s !important;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.05) !important;
+        transition: box-shadow 0.18s, border-left-color 0.15s, transform 0.1s !important;
     }
     .analysis-card:hover {
-        box-shadow: 0 4px 16px rgba(20,184,166,0.12) !important;
+        box-shadow: 0 5px 18px rgba(20,184,166,0.14) !important;
+        border-left-color: #0f766e !important;
+        transform: translateX(2px) !important;
     }
     .analysis-card.selected {
-        border-color: #14b8a6 !important;
-        box-shadow: 0 0 0 2px rgba(20,184,166,0.2) !important;
+        border-color: #0f766e !important;
+        border-left-color: #0f766e !important;
+        box-shadow: 0 0 0 2px rgba(15,118,110,0.18), 0 4px 14px rgba(15,118,110,0.09) !important;
     }
     .quality-chip, .analysis-quality-chip {
-        background: #f0fdf9 !important;
-        border: 1px solid rgba(20,184,166,0.2) !important;
-        color: #0a4840 !important;
-        font-size: 10.5px !important;
+        background: linear-gradient(135deg, #dbeafe, #eff6ff) !important;
+        border: 1px solid #93c5fd !important;
+        color: #1e40af !important;
+        font-size: 11px !important;
+        font-weight: 800 !important;
+        border-radius: 8px !important;
+    }
+    .km-analysis-card {
+        background: #ffffff !important;
+        border: 1px solid #fde68a !important;
+        border-top: 3px solid #f59e0b !important;
+        border-radius: 12px !important;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05) !important;
+    }
+    details.compact-panel {
+        background: #ffffff !important;
+        border: 1px solid #e2eaf0 !important;
+        border-radius: 10px !important;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.04) !important;
+    }
+    .selected-customer-panel {
+        background: linear-gradient(135deg, #f0fdf9, #ecfdf5) !important;
+        border: 1px solid #a7f3d0 !important;
+        border-left: 4px solid #10b981 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 2px 12px rgba(16,185,129,0.1) !important;
+    }
+    .selected-customer-panel h4 {
+        color: #064e3b !important;
+        font-size: 14px !important;
+        font-weight: 800 !important;
+    }
+    .new-customer-panel {
+        background: linear-gradient(135deg, #f0fdf9, #f8fafc) !important;
+        border: 1px solid #a7f3d0 !important;
+        border-left: 4px solid #10b981 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 2px 10px rgba(16,185,129,0.08) !important;
     }
     .customer-box {
         background: linear-gradient(180deg, #ffffff, #f8fbfb) !important;
@@ -5206,42 +5445,42 @@
 
             box.innerHTML = `
                 <div class="customer-tabs">
-                    <button type="button" class="customer-tab active" id="customersTabButton" onmousedown="event.preventDefault()" onclick="showCustomerTab('customers')">Müşteriler</button>
-                    <button type="button" class="customer-tab" id="kmanalysisTabButton" onmousedown="event.preventDefault()" onclick="showCustomerTab('kmanalysis')">KM Analizleri</button>
-                    <button type="button" class="customer-tab" id="qualityTabButton" onmousedown="event.preventDefault()" onclick="showCustomerTab('quality')">Kalite</button>
-                    <button type="button" class="customer-tab" id="customerlengthsTabButton" onmousedown="event.preventDefault()" onclick="showCustomerTab('customerlengths')">Müşteri Boyları</button>
+                    <button type="button" class="customer-tab active" id="customersTabButton" onmousedown="event.preventDefault()" onclick="showCustomerTab('customers')">👥 Müşteriler</button>
+                    <button type="button" class="customer-tab" id="kmanalysisTabButton" onmousedown="event.preventDefault()" onclick="showCustomerTab('kmanalysis')">📊 KM Analizleri</button>
+                    <button type="button" class="customer-tab" id="qualityTabButton" onmousedown="event.preventDefault()" onclick="showCustomerTab('quality')">✅ Kalite</button>
+                    <button type="button" class="customer-tab" id="customerlengthsTabButton" onmousedown="event.preventDefault()" onclick="showCustomerTab('customerlengths')">📏 Müşteri Boyları</button>
                 </div>
                 <datalist id="customerPortfolioOptions"></datalist>
                 <datalist id="qualityPortfolioOptions"></datalist>
                 <div class="customer-tab-panel" id="customersTabPanel">
-                    <div id="selectedCustomerAnalysisPanel"></div>
-                    <div class="compact-panel-body">
+                    <div class="customer-tab-panel-inner">
+                        <div id="selectedCustomerAnalysisPanel"></div>
                         <div class="analysis-search analysis-search-row">
-                            <input type="text" id="analysisPortfolioSearch" placeholder="Müşteri, kod veya kalite ara..." oninput="renderAnalysisPortfolioList()">
-                            <button type="button" onclick="createNewAnalysisCustomer()">Yeni Müşteri</button>
+                            <input type="text" id="analysisPortfolioSearch" placeholder="🔍 Müşteri, kod veya kalite ara..." oninput="renderAnalysisPortfolioList()">
+                            <button type="button" onclick="createNewAnalysisCustomer()">+ Yeni</button>
                         </div>
                         <div class="analysis-portfolio-list" id="analysisPortfolioList"></div>
                     </div>
                 </div>
                 <div class="customer-tab-panel" id="kmanalysisTabPanel" hidden>
-                    <div class="compact-panel-body">
+                    <div class="customer-tab-panel-inner">
                         <div class="km-analysis-grid" id="kmAnalysisGrid"></div>
-                        <button type="button" onclick="saveKmAnalysisSettings()">KM Analizlerini Kaydet</button>
+                        <button type="button" onclick="saveKmAnalysisSettings()" style="width:100%;margin-top:4px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;border-radius:10px;color:#fff;font-weight:800;min-height:40px;font-size:13px;box-shadow:0 3px 10px rgba(245,158,11,0.3);">💾 KM Analizlerini Kaydet</button>
                     </div>
                 </div>
                 <div class="customer-tab-panel" id="qualityTabPanel" hidden>
-                    <div class="compact-panel-body">
-                        <div class="quality-portfolio-grid">
-                            <input type="text" id="qualityPortfolioInput" list="qualityPortfolioOptions" placeholder="Kalite ekle" oninput="this.value = this.value.toLocaleUpperCase('tr-TR')">
-                            <button type="button" onclick="addQualityPortfolioEntry()">Ekle</button>
+                    <div class="customer-tab-panel-inner">
+                        <div class="quality-portfolio-grid" style="margin-bottom:12px;">
+                            <input type="text" id="qualityPortfolioInput" list="qualityPortfolioOptions" placeholder="Kalite kodu girin..." oninput="this.value = this.value.toLocaleUpperCase('tr-TR')" style="background:#fff;border:1.5px solid #bfdbfe;border-radius:10px;font-size:13px;min-height:40px;padding:9px 12px;transition:border-color 0.15s;outline:none;">
+                            <button type="button" onclick="addQualityPortfolioEntry()" style="background:linear-gradient(135deg,#3b82f6,#2563eb);border:none;border-radius:10px;color:#fff;font-weight:800;min-height:40px;padding:0 18px;font-size:13px;box-shadow:0 2px 8px rgba(59,130,246,0.3);">+ Ekle</button>
                         </div>
                         <div class="quality-chip-list" id="qualityPortfolioList"></div>
                     </div>
                 </div>
                 <div class="customer-tab-panel" id="customerlengthsTabPanel" hidden>
-                    <div class="compact-panel-body" style="padding:12px 14px;">
+                    <div class="customer-tab-panel-inner">
                         <div id="customerMaxLengthsGrid"></div>
-                        <button type="button" onclick="saveCustomerMaxLengths()" style="width:100%;margin-top:4px;">Müşteri Boylarını Kaydet</button>
+                        <button type="button" onclick="saveCustomerMaxLengths()" style="width:100%;margin-top:8px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border:none;border-radius:10px;color:#fff;font-weight:800;min-height:40px;font-size:13px;box-shadow:0 3px 10px rgba(139,92,246,0.3);">💾 Müşteri Boylarını Kaydet</button>
                     </div>
                 </div>
             `;
@@ -12394,7 +12633,10 @@
     <div id="customerDrawerOverlay" style="display:none" onclick="closeCustomerDrawer()"></div>
     <div id="customerDrawer" class="customer-drawer">
         <div class="customer-drawer-header">
-            <span class="customer-drawer-title">Müşteriler</span>
+            <div style="display:flex;flex-direction:column;gap:2px;">
+                <span style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:rgba(20,184,166,0.8);">Kenan Metal</span>
+                <span class="customer-drawer-title">Müşteri Portföyü</span>
+            </div>
             <button type="button" class="customer-drawer-close" onclick="closeCustomerDrawer()">✕</button>
         </div>
         <div id="customerDrawerBody" class="customer-drawer-body">
