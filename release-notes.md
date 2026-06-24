@@ -1,5 +1,5 @@
-Gereksiz periyodik polling kaldırıldı:
+Zoom sistemi yeniden yazıldı:
 
-- Lock sistemi iki PC'nin aynı anda çalışmasını zaten engeller.
-- Açılışta ağdan veri çekmek yeterli; 10 saniyelik polling gereksizdi.
-- Eklenen dökümlerin silinmesi sorunu tamamen ortadan kalktı.
+- webFrame yerine CSS zoom kullanılıyor: layout yeniden hesaplanır, tablo her zoom seviyesinde ekrana sığar, yatay scroll olmaz.
+- Zoom yönü hatası (küçük monitörde + basınca küçülme) giderildi.
+- Zoom seviyesi JS değişkeninde tutulur, tarayıcı DPI'sinden etkilenmez.

@@ -12349,27 +12349,29 @@
         }
 
         // ── Zoom kontrolü ────────────────────────────────────────────────────────
+        // CSS zoom kullanır (webFrame değil): layout yeniden hesaplanır,
+        // tablo her seviyede viewport'a sığar, yatay scroll olmaz.
         const ZOOM_STORAGE_KEY = 'castingPlannerZoom';
         const ZOOM_MIN = 0.5, ZOOM_MAX = 2.0, ZOOM_STEP = 0.1;
+        let _currentZoom = 1.0;
 
         function applyZoom(factor) {
             factor = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(factor * 10) / 10));
-            if (window.networkStore && window.networkStore.setZoom) {
-                window.networkStore.setZoom(factor);
-            }
+            _currentZoom = factor;
+            document.documentElement.style.zoom = factor;
             localStorage.setItem(ZOOM_STORAGE_KEY, String(factor));
             const label = document.getElementById('zoomLabel');
             if (label) label.textContent = Math.round(factor * 100) + '%';
         }
 
         function adjustZoom(delta) {
-            const current = window.networkStore && window.networkStore.getZoom ? window.networkStore.getZoom() : 1;
-            applyZoom(current + delta);
+            applyZoom(_currentZoom + delta);
         }
 
         function initZoom() {
             const saved = parseFloat(localStorage.getItem(ZOOM_STORAGE_KEY) || '1');
-            applyZoom(isFinite(saved) ? saved : 1);
+            _currentZoom = isFinite(saved) ? saved : 1;
+            applyZoom(_currentZoom);
         }
 
         document.addEventListener('keydown', (e) => {
