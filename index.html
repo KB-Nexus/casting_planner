@@ -12290,7 +12290,7 @@
             if (networkIsNewer && networkTs) localStorage.setItem(LOCAL_LAST_MODIFIED_KEY, String(networkTs));
         }
 
-        async function syncFromNetwork({ silent = false, reloadUI = false } = {}) {
+        async function syncFromNetwork({ silent = false, reloadUI = false, force = false } = {}) {
             if (!window.networkStore) return;
             if (!silent) setNetworkStatus('warn', 'Bağlanıyor...');
             try {
@@ -12306,10 +12306,19 @@
                 if (result.data) {
                     const localTs = parseInt(localStorage.getItem(LOCAL_LAST_MODIFIED_KEY) || '0');
                     const networkTs = result.data.lastModified || 0;
-                    const wasNewer = networkTs > localTs;
-                    applyNetworkData(result.data);
-                    if (reloadUI && wasNewer) {
-                        reloadAllFromStorage();
+                    // force=true: polling durumunda timestamp farkı ne olursa olsun uygula
+                    // Bu PC'de aktif yazma yoksa ağ verisi her zaman doğrudur
+                    if (force) {
+                        applyNetworkData(result.data, { forceOrders: true });
+                        if (reloadUI && networkTs !== localTs) {
+                            reloadAllFromStorage();
+                        }
+                    } else {
+                        const wasNewer = networkTs > localTs;
+                        applyNetworkData(result.data);
+                        if (reloadUI && wasNewer) {
+                            reloadAllFromStorage();
+                        }
                     }
                 }
                 setNetworkStatus('ok', 'Ağ bağlı');
@@ -12342,15 +12351,18 @@
             updateStockNeedDashboard();
         }
 
-        // Periyodik ağ senkronizasyonu — 30 saniyede bir kontrol
+        // Periyodik ağ senkronizasyonu — 10 saniyede bir kontrol
         let _periodicSyncTimer = null;
+        let _lastLocalWriteTs = 0; // Bu PC'nin son yazma zamanı
         function startPeriodicSync() {
             if (_periodicSyncTimer) return;
             _periodicSyncTimer = setInterval(() => {
-                // Yazma debounce aktifken atla (300ms yazma penceresi)
-                // Diğer durumlarda her zaman kontrol et; wasNewer=false ise UI yenilenmez
-                if (!networkSyncDebounceTimer) {
-                    syncFromNetwork({ silent: true, reloadUI: true });
+                if (networkSyncDebounceTimer) return; // Aktif yazma sürüyor, atla
+                const timeSinceWrite = Date.now() - _lastLocalWriteTs;
+                // Son yazmadan 2 saniye geçtiyse ağı force ile çek
+                // (kendi yazdığımız verinin üzerine yazmayı önler)
+                if (timeSinceWrite > 2000) {
+                    syncFromNetwork({ silent: true, reloadUI: true, force: true });
                 }
             }, 10000);
         }
@@ -12379,7 +12391,8 @@
         }
 
         function scheduleSyncToNetwork() {
-            localStorage.setItem(LOCAL_LAST_MODIFIED_KEY, String(Date.now()));
+            _lastLocalWriteTs = Date.now();
+            localStorage.setItem(LOCAL_LAST_MODIFIED_KEY, String(_lastLocalWriteTs));
             if (networkSyncDebounceTimer) clearTimeout(networkSyncDebounceTimer);
             networkSyncDebounceTimer = setTimeout(() => {
                 networkSyncDebounceTimer = null;

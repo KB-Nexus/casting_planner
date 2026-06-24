@@ -1,5 +1,5 @@
-Otomatik senkronizasyon düzeltmesi:
+Senkronizasyon timestamp sorunu kökten çözüldü:
 
-- Timer sıfırlanmama hatası giderildi; yazma sonrası polling artık engellenmez.
-- Kontrol aralığı 30 saniyeden 10 saniyeye düşürüldü.
-- Değişiklik yapıldıktan en fazla 10 saniye içinde diğer PC'ye yansır.
+- Periyodik polling artık timestamp karşılaştırmasını bypass eder.
+- Bu PC aktif yazma yapmıyorken ağ verisi her zaman uygulanır.
+- Farklı PC saatleri veya eski timestamp değerleri artık senkronizasyonu engellemez.
