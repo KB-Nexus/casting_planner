@@ -12267,30 +12267,26 @@
             cloudPlanSyncDebounceTimer = setTimeout(() => syncCloudPlan(), 1200);
         }
 
-        function applyNetworkData(data, { forceOrders = false } = {}) {
+        // Ağ verisini localStorage'a yazar. Ağ her zaman tek kaynak.
+        // Timestamp karşılaştırması yok — çağıran taraf ne zaman uygulanacağına karar verir.
+        function applyNetworkData(data) {
             if (!data) return;
-            const localTs = parseInt(localStorage.getItem(LOCAL_LAST_MODIFIED_KEY) || '0');
-            const networkTs = data.lastModified || 0;
-            // Ağ verisi yerel veriden eski ise (yerel değişiklik ağa yetişememiş), üzerine yazma.
-            // Manuel yükleme (forceOrders) durumunda her zaman uygula.
-            const networkIsNewer = forceOrders || networkTs >= localTs;
-            if (data.settings && networkIsNewer) localStorage.setItem(STORAGE_KEY, JSON.stringify(data.settings));
-            if (data.orders && networkIsNewer) localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(data.orders));
-            if (data.manualKmSlots && networkIsNewer) localStorage.setItem(MANUAL_SLOT_STORAGE_KEY, JSON.stringify(data.manualKmSlots));
-            if (data.manualInsertedSlots && networkIsNewer) localStorage.setItem(MANUAL_INSERTED_SLOTS_KEY, JSON.stringify(data.manualInsertedSlots));
-            if (data.slotPlan && networkIsNewer) localStorage.setItem(SLOT_PLAN_STORAGE_KEY, JSON.stringify(data.slotPlan));
-            if (data.closedOvens && networkIsNewer) localStorage.setItem(CLOSED_OVENS_STORAGE_KEY, JSON.stringify(data.closedOvens));
-            if (data.completedCastings && networkIsNewer) localStorage.setItem(COMPLETED_CASTING_STORAGE_KEY, JSON.stringify(data.completedCastings));
-            if (data.analysisPortfolio && networkIsNewer) localStorage.setItem(ANALYSIS_PORTFOLIO_STORAGE_KEY, JSON.stringify(data.analysisPortfolio));
-            if (data.kmAnalysisSettings && networkIsNewer) localStorage.setItem(KM_ANALYSIS_STORAGE_KEY, JSON.stringify(data.kmAnalysisSettings));
-            if (data.customerMaxLengths && networkIsNewer) localStorage.setItem(CUSTOMER_MAX_LENGTH_STORAGE_KEY, JSON.stringify(data.customerMaxLengths));
-            if (data.qualityPortfolio && networkIsNewer) localStorage.setItem(QUALITY_PORTFOLIO_STORAGE_KEY, JSON.stringify(data.qualityPortfolio));
-            if (data.deletedDefaults && networkIsNewer) localStorage.setItem(DELETED_DEFAULTS_KEY, JSON.stringify(data.deletedDefaults));
-            // Ağ verisi uygulandıysa yerel timestamp'i güncelle
-            if (networkIsNewer && networkTs) localStorage.setItem(LOCAL_LAST_MODIFIED_KEY, String(networkTs));
+            if (data.settings) localStorage.setItem(STORAGE_KEY, JSON.stringify(data.settings));
+            if (data.orders) localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(data.orders));
+            if (data.manualKmSlots) localStorage.setItem(MANUAL_SLOT_STORAGE_KEY, JSON.stringify(data.manualKmSlots));
+            if (data.manualInsertedSlots) localStorage.setItem(MANUAL_INSERTED_SLOTS_KEY, JSON.stringify(data.manualInsertedSlots));
+            if (data.slotPlan) localStorage.setItem(SLOT_PLAN_STORAGE_KEY, JSON.stringify(data.slotPlan));
+            if (data.closedOvens) localStorage.setItem(CLOSED_OVENS_STORAGE_KEY, JSON.stringify(data.closedOvens));
+            if (data.completedCastings) localStorage.setItem(COMPLETED_CASTING_STORAGE_KEY, JSON.stringify(data.completedCastings));
+            if (data.analysisPortfolio) localStorage.setItem(ANALYSIS_PORTFOLIO_STORAGE_KEY, JSON.stringify(data.analysisPortfolio));
+            if (data.kmAnalysisSettings) localStorage.setItem(KM_ANALYSIS_STORAGE_KEY, JSON.stringify(data.kmAnalysisSettings));
+            if (data.customerMaxLengths) localStorage.setItem(CUSTOMER_MAX_LENGTH_STORAGE_KEY, JSON.stringify(data.customerMaxLengths));
+            if (data.qualityPortfolio) localStorage.setItem(QUALITY_PORTFOLIO_STORAGE_KEY, JSON.stringify(data.qualityPortfolio));
+            if (data.deletedDefaults) localStorage.setItem(DELETED_DEFAULTS_KEY, JSON.stringify(data.deletedDefaults));
+            if (data.lastModified) localStorage.setItem(LOCAL_LAST_MODIFIED_KEY, String(data.lastModified));
         }
 
-        async function syncFromNetwork({ silent = false, reloadUI = false, force = false } = {}) {
+        async function syncFromNetwork({ silent = false, reloadUI = false } = {}) {
             if (!window.networkStore) return;
             if (!silent) setNetworkStatus('warn', 'Bağlanıyor...');
             try {
@@ -12304,21 +12300,11 @@
                     return false;
                 }
                 if (result.data) {
-                    const localTs = parseInt(localStorage.getItem(LOCAL_LAST_MODIFIED_KEY) || '0');
+                    const prevTs = parseInt(localStorage.getItem(LOCAL_LAST_MODIFIED_KEY) || '0');
                     const networkTs = result.data.lastModified || 0;
-                    // force=true: polling durumunda timestamp farkı ne olursa olsun uygula
-                    // Bu PC'de aktif yazma yoksa ağ verisi her zaman doğrudur
-                    if (force) {
-                        applyNetworkData(result.data, { forceOrders: true });
-                        if (reloadUI && networkTs !== localTs) {
-                            reloadAllFromStorage();
-                        }
-                    } else {
-                        const wasNewer = networkTs > localTs;
-                        applyNetworkData(result.data);
-                        if (reloadUI && wasNewer) {
-                            reloadAllFromStorage();
-                        }
+                    applyNetworkData(result.data);
+                    if (reloadUI && networkTs !== prevTs) {
+                        reloadAllFromStorage();
                     }
                 }
                 setNetworkStatus('ok', 'Ağ bağlı');
@@ -12353,17 +12339,14 @@
 
         // Periyodik ağ senkronizasyonu — 10 saniyede bir kontrol
         let _periodicSyncTimer = null;
-        let _lastLocalWriteTs = 0; // Bu PC'nin son yazma zamanı
+        let _lastLocalWriteTs = 0;
         function startPeriodicSync() {
             if (_periodicSyncTimer) return;
             _periodicSyncTimer = setInterval(() => {
-                if (networkSyncDebounceTimer) return; // Aktif yazma sürüyor, atla
-                const timeSinceWrite = Date.now() - _lastLocalWriteTs;
-                // Son yazmadan 2 saniye geçtiyse ağı force ile çek
-                // (kendi yazdığımız verinin üzerine yazmayı önler)
-                if (timeSinceWrite > 2000) {
-                    syncFromNetwork({ silent: true, reloadUI: true, force: true });
-                }
+                // Aktif yazma varsa veya son yazmadan 2sn geçmediyse atla
+                if (networkSyncDebounceTimer) return;
+                if (Date.now() - _lastLocalWriteTs < 2000) return;
+                syncFromNetwork({ silent: true, reloadUI: true });
             }, 10000);
         }
 
@@ -12530,7 +12513,7 @@
                 return;
             }
             closeBackupModal();
-            applyNetworkData(result.data, { forceOrders: true });
+            applyNetworkData(result.data);
             loadPlannerSettings();
             loadPendingOrders();
             loadManualKmSlots();

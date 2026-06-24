@@ -1,5 +1,5 @@
-Senkronizasyon timestamp sorunu kökten çözüldü:
+Veri mimarisi köktenci yenilendi — ağ tek kaynak:
 
-- Periyodik polling artık timestamp karşılaştırmasını bypass eder.
-- Bu PC aktif yazma yapmıyorken ağ verisi her zaman uygulanır.
-- Farklı PC saatleri veya eski timestamp değerleri artık senkronizasyonu engellemez.
+- Timestamp karşılaştırması tamamen kaldırıldı; ağ dosyası her zaman doğrudur.
+- Her PC açılışta ve 10 saniyede bir ağdan okur; yerel önbellek asla senkronizasyonu engelleyemez.
+- İki PC arasındaki veri tutarsızlığı sorunu kökten çözüldü.
