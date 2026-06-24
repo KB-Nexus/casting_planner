@@ -381,10 +381,7 @@
         }
 
         #stockExtraControls {
-            display: flex;
-            flex-direction: column;
-            gap: 7px;
-            padding-top: 72px;
+            display: none;
         }
 
         .planner-page-tabs {
@@ -475,7 +472,7 @@
             display: grid;
             font-size: 12px;
             gap: 9px;
-            grid-template-columns: 48px minmax(0, 1fr) 20px;
+            grid-template-columns: 48px minmax(0, 1fr) 20px auto;
             line-height: 1.45;
             min-height: 21px;
         }
@@ -575,7 +572,7 @@
 
         .stock-dashboard-row.is-warning b,
         .stock-dashboard-row.is-danger b {
-            display: none;
+            visibility: hidden;
         }
 
         .stock-copy-button {
@@ -2306,10 +2303,10 @@
             align-items: center;
             display: grid;
             font-size: 12px;
-            gap: 6px;
+            gap: 9px;
             grid-template-columns: 48px minmax(0, 1fr) auto;
             line-height: 1.45;
-            min-height: 24px;
+            min-height: 21px;
         }
 
         .stock-sim-row strong {
@@ -2342,7 +2339,7 @@
             border-radius: 7px;
             display: inline-flex;
             gap: 0;
-            height: 26px;
+            height: 22px;
             overflow: hidden;
         }
 
@@ -2350,22 +2347,15 @@
             all: unset;
             align-items: center;
             background: transparent;
-            border: none;
-            box-shadow: none;
             color: #9ca3af;
             cursor: pointer;
             display: flex;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 900;
-            height: 26px;
+            height: 22px;
             justify-content: center;
             line-height: 1;
-            margin: 0;
-            min-height: unset;
-            min-width: unset;
-            padding: 0 7px;
-            transform: none;
-            width: auto;
+            padding: 0 5px;
         }
 
         .stock-sim-counter button:hover {
@@ -2375,12 +2365,10 @@
 
         .stock-sim-counter span {
             color: #f9fafb;
-            font-size: 13px;
+            font-size: 11px;
             font-weight: 800;
-            min-width: 22px;
-            overflow: visible;
+            min-width: 24px;
             text-align: center;
-            white-space: nowrap;
         }
 
         tr.drop-ready td {
@@ -3756,7 +3744,7 @@
         box-shadow:
             0 8px 28px rgba(0,0,0,0.3),
             inset 0 1px 0 rgba(255,255,255,0.04) !important;
-        padding: 13px 13px 32px 13px !important;
+        padding: 13px 13px 42px 13px !important;
         align-items: flex-start !important;
         position: relative !important;
     }
@@ -3800,7 +3788,8 @@
     .stock-dashboard-row.is-danger strong,
     .stock-dashboard-row.is-danger span { color: #f87171 !important; }
     .stock-dashboard-row.is-good b { color: #34d399 !important; }
-    .stock-extra-counter {
+    .stock-extra-counter,
+    .stock-sim-counter {
         background: rgba(255,255,255,0.06) !important;
         border: 1px solid rgba(255,255,255,0.1) !important;
         border-radius: 8px !important;
@@ -3824,10 +3813,19 @@
         border: 1px solid rgba(20,184,166,0.12) !important;
         border-top: 2px solid rgba(20,184,166,0.2) !important;
         border-radius: 14px !important;
+        box-shadow: 0 8px 28px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04) !important;
         margin-top: 10px !important;
+        padding: 13px 13px 42px 13px !important;
+        position: relative !important;
     }
-    .stock-sim-row strong { color: #ccfbf1 !important; }
-    .stock-sim-row span { color: #486070 !important; }
+    .left-slot-stock > .stock-copy-button {
+        position: absolute !important;
+        bottom: 8px !important;
+        right: 8px !important;
+        margin: 0 !important;
+    }
+    .stock-sim-row strong { color: #8dc8d6 !important; }
+    .stock-sim-row span { color: #6a9aaa !important; }
     .stock-sim-row.is-warning strong,
     .stock-sim-row.is-warning span { color: #fbbf24 !important; }
     .stock-sim-row.is-danger strong,
@@ -10896,9 +10894,12 @@
         function updateStockDashboard() {
             const dashboard = document.getElementById("stockDashboard");
             if (!dashboard) return;
-            const rows = getStockDashboardRows().map(item =>
-                `<div class="stock-dashboard-row ${item.level}"><strong>${item.diameter}mm</strong><span>${item.emptyText}</span><b>${item.marker}</b></div>`
-            );
+            const rows = getStockDashboardRows().map(item => {
+                const extraVal = stockExtraDays[item.diameter] || 0;
+                const display = extraVal % 1 === 0 ? extraVal : extraVal.toFixed(1);
+                const counter = `<div class="stock-extra-counter"><button type="button" onclick="changeStockExtra('${item.diameter}',-0.5)">−</button><span>${display}</span><button type="button" onclick="changeStockExtra('${item.diameter}',0.5)">+</button></div>`;
+                return `<div class="stock-dashboard-row ${item.level}"><strong>${item.diameter}mm</strong><span>${item.emptyText}</span><b>${item.marker}</b>${counter}</div>`;
+            });
             const existing = dashboard.querySelectorAll(".stock-dashboard-row");
             existing.forEach(el => el.remove());
             const copyBtn = dashboard.querySelector(".stock-copy-button");
@@ -10908,13 +10909,7 @@
                 dashboard.insertBefore(tmp.firstChild, copyBtn || null);
             });
             const extraControls = document.getElementById("stockExtraControls");
-            if (extraControls) {
-                extraControls.innerHTML = Object.keys(diameters).map(diameter => {
-                    const extraVal = stockExtraDays[diameter] || 0;
-                    const display = extraVal % 1 === 0 ? extraVal : extraVal.toFixed(1);
-                    return `<div class="stock-extra-counter"><button type="button" onclick="changeStockExtra('${diameter}',-0.5)">−</button><span>${display}</span><button type="button" onclick="changeStockExtra('${diameter}',0.5)">+</button></div>`;
-                }).join("");
-            }
+            if (extraControls) extraControls.innerHTML = "";
         }
 
         function roundedRectPath(context, x, y, width, height, radius) {
