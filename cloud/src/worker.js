@@ -296,8 +296,20 @@ async function loadPlan(){
 
 async function loadHistory(){
   const content=document.getElementById("content");
-  content.innerHTML='<div class="loading">Geçmiş yükleniyor…</div>';
   document.getElementById("updated").textContent="";
+  // Arama çubuğu yoksa bir kez oluştur (input yeniden oluşturulursa klavye kapanır)
+  if(!document.getElementById("hist-search-bar")){
+    content.innerHTML=
+      '<div class="hist-search" id="hist-search-bar">'
+        +'<input id="hist-q" type="search" placeholder="Müşteri, lot, kalite ara…" />'
+        +'<select id="hist-diam"><option value="">Tüm çaplar</option></select>'
+      +'</div>'
+      +'<div id="hist-results"><div class="loading">Geçmiş yükleniyor…</div></div>';
+    document.getElementById("hist-q").addEventListener("input",function(){historyFilter=this.value;renderHistoryResults();});
+    document.getElementById("hist-diam").addEventListener("change",function(){historyDiameter=this.value;renderHistoryResults();});
+  }else{
+    document.getElementById("hist-results").innerHTML='<div class="loading">Geçmiş yükleniyor…</div>';
+  }
   try{
     const response=await fetch("/api/history",{cache:"no-store"});
     if(response.status===401){location.reload();return}
@@ -305,14 +317,18 @@ async function loadHistory(){
     historyRecords=data.records||[];
     const upd=data.updatedAt?new Date(data.updatedAt).toLocaleString("tr-TR"):"";
     document.getElementById("updated").textContent=upd?"Son güncelleme: "+upd:historyRecords.length+" kayıt";
-    renderHistory();
+    // Çap seçeneklerini güncelle (select yeniden oluşturulmaz, değer korunur)
+    const diameters=[...new Set(historyRecords.map(r=>String(r.diameter||'')).filter(Boolean))].sort();
+    const sel=document.getElementById("hist-diam");
+    const curDiam=sel.value;
+    sel.innerHTML='<option value="">Tüm çaplar</option>'+diameters.map(d=>'<option value="'+escapeHtml(d)+'"'+(curDiam===d?' selected':'')+'>'+escapeHtml(d)+' mm</option>').join('');
+    renderHistoryResults();
   }catch(e){
-    content.innerHTML='<div class="empty">Geçmiş yüklenemedi. Sayfayı yenileyin.</div>';
+    document.getElementById("hist-results").innerHTML='<div class="empty">Geçmiş yüklenemedi. Sayfayı yenileyin.</div>';
   }
 }
 
-function renderHistory(){
-  const content=document.getElementById("content");
+function renderHistoryResults(){
   const q=historyFilter.toLowerCase();
   const diam=historyDiameter;
   let records=historyRecords;
@@ -322,14 +338,10 @@ function renderHistory(){
     (r.quality||'').toLowerCase().includes(q)||
     (r.note||'').toLowerCase().includes(q)
   );
-  if(diam) records=records.filter(r=>String(r.diameter||'')=== diam);
-
-  const diameters=[...new Set(historyRecords.map(r=>String(r.diameter||'')).filter(Boolean))].sort();
-  const diamOptions=diameters.map(d=>'<option value="'+escapeHtml(d)+'"'+(diam===d?' selected':'')+'>'+escapeHtml(d)+' mm</option>').join('');
+  if(diam) records=records.filter(r=>String(r.diameter||'')===diam);
 
   const headers=['Tarih','Çap','Müşteri','Lot','Boy','Kalite','Analiz','Not'];
   const head=headers.map(h=>'<th>'+h+'</th>').join('');
-
   const rows=records.map(r=>{
     const completedAt=r.completedAt?new Date(r.completedAt).toLocaleString("tr-TR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"";
     const isKm=(r.customer||'').toUpperCase()==='KM';
@@ -347,14 +359,12 @@ function renderHistory(){
       +'</tr>';
   }).join('');
 
-  const empty=records.length===0?'<div class="empty">'+(historyRecords.length===0?'Henüz tamamlanan döküm kaydı yok.':'Arama kriterlerine uyan kayıt bulunamadı.')+'</div>':'';
-
-  content.innerHTML=
-    '<div class="hist-search">'
-      +'<input type="search" placeholder="Müşteri, lot, kalite ara…" value="'+escapeHtml(historyFilter)+'" oninput="historyFilter=this.value;renderHistory()" />'
-      +'<select onchange="historyDiameter=this.value;renderHistory()"><option value="">Tüm çaplar</option>'+diamOptions+'</select>'
-    +'</div>'
-    +(empty||'<div class="scroll"><table><thead><tr>'+head+'</tr></thead><tbody>'+rows+'</tbody></table></div>');
+  const resultsEl=document.getElementById("hist-results");
+  if(records.length===0){
+    resultsEl.innerHTML='<div class="empty">'+(historyRecords.length===0?'Henüz tamamlanan döküm kaydı yok.':'Arama kriterlerine uyan kayıt bulunamadı.')+'</div>';
+  }else{
+    resultsEl.innerHTML='<div class="scroll"><table><thead><tr>'+head+'</tr></thead><tbody>'+rows+'</tbody></table></div>';
+  }
 }
 
 loadPlan().catch(()=>{document.getElementById("content").innerHTML='<div class="empty">Plan yüklenemedi. Sayfayı yenileyin.</div>'});
