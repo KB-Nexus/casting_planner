@@ -10431,6 +10431,7 @@
             completedCastings = completedCastings.filter(item => item.lot !== record.lot);
             completedCastings.unshift(record);
             saveCompletedCastings();
+            scheduleCloudHistorySync();
         }
 
         function advanceSlotPlanAfterCompletion(completedSlotNumber) {
@@ -10506,6 +10507,7 @@
             completedCastings = completedCastings.filter(item => String(item.id) !== String(recordId));
             saveCompletedCastings();
             scheduleSyncToNetwork();
+            scheduleCloudHistorySync();
         }
 
         function addManualCompletedCasting(record) {
@@ -12295,6 +12297,21 @@
         function scheduleCloudPlanSync() {
             if (cloudPlanSyncDebounceTimer) clearTimeout(cloudPlanSyncDebounceTimer);
             cloudPlanSyncDebounceTimer = setTimeout(() => syncCloudPlan(), 1200);
+        }
+
+        async function syncCloudHistory() {
+            if (!window.networkStore || !window.networkStore.uploadCloudHistory) return;
+            try {
+                await window.networkStore.uploadCloudHistory(completedCastings);
+            } catch (_) {
+                // Bulut erişimi ana uygulamanın yerel/ağ çalışmasını engellemez.
+            }
+        }
+
+        let cloudHistorySyncDebounceTimer = null;
+        function scheduleCloudHistorySync() {
+            if (cloudHistorySyncDebounceTimer) clearTimeout(cloudHistorySyncDebounceTimer);
+            cloudHistorySyncDebounceTimer = setTimeout(() => syncCloudHistory(), 3000);
         }
 
         // Ağ verisini localStorage'a yazar. Ağ her zaman tek kaynak.

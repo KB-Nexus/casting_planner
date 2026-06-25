@@ -559,6 +559,28 @@ ipcMain.handle('cloud-plan-upload', async (event, plan) => {
     }
 });
 
+// IPC: tamamlanan dökümleri Cloudflare'a gönder
+ipcMain.handle('cloud-history-upload', async (event, records) => {
+    const config = readCloudConfig();
+    if (!config) return { ok: false, reason: 'not_configured' };
+    try {
+        const response = await withTimeout(fetch(`${config.url}/api/history-upload`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${config.uploadToken}`,
+                'Content-Type': 'application/json; charset=utf-8',
+            },
+            body: JSON.stringify({ records }),
+        }), CLOUD_TIMEOUT_MS);
+        if (!response.ok) {
+            return { ok: false, reason: 'http_error', status: response.status };
+        }
+        return { ok: true };
+    } catch (err) {
+        return { ok: false, reason: 'connection_error', message: err.message };
+    }
+});
+
 // IPC: report penceresini aç (temp dosya üzerinden)
 ipcMain.handle('open-report-window', async (event, html) => {
     const tmpPath = path.join(os.tmpdir(), 'casting_plan_report.html');

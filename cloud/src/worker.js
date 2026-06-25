@@ -13,6 +13,9 @@ export default {
     if (url.pathname === "/api/upload" && request.method === "POST") {
       return uploadPlan(request, env);
     }
+    if (url.pathname === "/api/history-upload" && request.method === "POST") {
+      return uploadHistory(request, env);
+    }
     if (url.pathname === "/api/plan" && request.method === "GET") {
       if (!(await hasValidSession(request, env))) return json({ error: "unauthorized" }, 401);
       const record = await env.DB.prepare(
@@ -20,6 +23,14 @@ export default {
       ).first();
       if (!record) return json({ plan: null });
       return json({ plan: JSON.parse(record.payload), updatedAt: record.updated_at });
+    }
+    if (url.pathname === "/api/history" && request.method === "GET") {
+      if (!(await hasValidSession(request, env))) return json({ error: "unauthorized" }, 401);
+      const record = await env.DB.prepare(
+        "SELECT payload, updated_at FROM completed_history WHERE id = 1"
+      ).first();
+      if (!record) return json({ records: [], updatedAt: null });
+      return json({ records: JSON.parse(record.payload), updatedAt: record.updated_at });
     }
     if (url.pathname === "/login" && request.method === "POST") {
       return login(request, env);
@@ -58,6 +69,29 @@ async function serveUpdate(url, env) {
   if (key.endsWith(".yml")) headers.set("Content-Type", "text/yaml; charset=utf-8");
   if (key.endsWith(".exe")) headers.set("Content-Type", "application/vnd.microsoft.portable-executable");
   return new Response(object.body, { headers });
+}
+
+async function uploadHistory(request, env) {
+  const authorization = request.headers.get("Authorization") || "";
+  if (!(await secureEqual(authorization, `Bearer ${env.UPLOAD_TOKEN || ""}`))) {
+    return json({ error: "unauthorized" }, 401);
+  }
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "invalid_json" }, 400);
+  }
+  if (!Array.isArray(body.records)) return json({ error: "invalid_payload" }, 400);
+  const payload = JSON.stringify(body.records);
+  if (payload.length > 2_000_000) return json({ error: "payload_too_large" }, 413);
+  const updatedAt = new Date().toISOString();
+  await env.DB.prepare(`
+    INSERT INTO completed_history (id, payload, updated_at)
+    VALUES (1, ?1, ?2)
+    ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at
+  `).bind(payload, updatedAt).run();
+  return json({ ok: true, updatedAt });
 }
 
 async function uploadPlan(request, env) {
@@ -207,27 +241,124 @@ function planPage() {
 <html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Kenan Metal · Üretim Planı</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#edf2f6;color:#17212b;font:14px system-ui,-apple-system,Segoe UI,sans-serif}.top{background:#101820;color:#fff;padding:18px max(16px,calc((100vw - 1400px)/2));display:flex;align-items:center;justify-content:space-between;gap:15px}.brand{color:#8dd3c7;font-size:12px;font-weight:850;letter-spacing:.12em;text-transform:uppercase}.top h1{font-size:22px;margin:3px 0}.meta{color:#b8c4ce;font-size:12px}
-button{border:1px solid #ffffff30;border-radius:8px;background:#ffffff12;color:#fff;padding:8px 11px;font-weight:700}.shell{max-width:1400px;margin:18px auto;padding:0 12px}.card{background:#fff;border:1px solid #d9e3e9;border-radius:13px;box-shadow:0 8px 28px #17212b10;overflow:hidden}.scroll{overflow:auto;max-height:calc(100vh - 145px)}
+*{box-sizing:border-box}body{margin:0;background:#edf2f6;color:#17212b;font:14px system-ui,-apple-system,Segoe UI,sans-serif}
+.top{background:#101820;color:#fff;padding:18px max(16px,calc((100vw - 1400px)/2));display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}
+.brand{color:#8dd3c7;font-size:12px;font-weight:850;letter-spacing:.12em;text-transform:uppercase}.top h1{font-size:22px;margin:3px 0}.meta{color:#b8c4ce;font-size:12px}
+.top-actions{display:flex;gap:8px;align-items:center}
+button{border:1px solid #ffffff30;border-radius:8px;background:#ffffff12;color:#fff;padding:8px 11px;font-weight:700;cursor:pointer;font-size:13px}
+button.active{background:#2f6f65;border-color:#2f6f65}
+.shell{max-width:1400px;margin:18px auto;padding:0 12px}.card{background:#fff;border:1px solid #d9e3e9;border-radius:13px;box-shadow:0 8px 28px #17212b10;overflow:hidden}.scroll{overflow:auto;max-height:calc(100vh - 145px)}
 table{width:100%;border-collapse:separate;border-spacing:0;min-width:850px}th{position:sticky;top:0;z-index:2;background:#f7fafc;color:#334155;font-size:11px;letter-spacing:.035em;text-transform:uppercase}th,td{border-right:1px solid #cbd5e1;border-bottom:1px solid #cbd5e1;padding:9px 8px;text-align:center;font-weight:700}th:last-child,td:last-child{border-right:0}td:nth-child(n+7){text-align:left}.empty,.loading{padding:40px;text-align:center;color:#64748b}
-@media(max-width:600px){.top{padding:14px}.top h1{font-size:19px}.shell{margin:10px auto;padding:0 7px}.scroll{max-height:calc(100vh - 119px)}th,td{padding:8px 6px;font-size:12px}}
-</style></head><body><header class="top"><div><div class="brand">Kenan Metal</div><h1>Üretim Planı</h1><div class="meta" id="updated">Yükleniyor…</div></div><form action="/logout" method="post"><button type="submit">Çıkış</button></form></header>
-<main class="shell"><section class="card"><div class="scroll" id="content"><div class="loading">Plan yükleniyor…</div></div></section></main>
+.hist-search{display:flex;gap:8px;padding:12px;border-bottom:1px solid #e2e8f0;background:#f8fafc}
+.hist-search input{flex:1;border:1px solid #cbd5e1;border-radius:8px;padding:7px 10px;font:inherit;outline:none;min-width:0}
+.hist-search input:focus{border-color:#2f6f65;box-shadow:0 0 0 3px #2f6f6520}
+.hist-search select{border:1px solid #cbd5e1;border-radius:8px;padding:7px 10px;font:inherit;outline:none;background:#fff}
+@media(max-width:600px){.top{padding:14px}.top h1{font-size:19px}.shell{margin:10px auto;padding:0 7px}.scroll{max-height:calc(100vh - 145px)}th,td{padding:8px 6px;font-size:12px}.hist-search{flex-wrap:wrap}}
+</style></head>
+<body>
+<header class="top">
+  <div><div class="brand">Kenan Metal</div><h1 id="page-title">Üretim Planı</h1><div class="meta" id="updated">Yükleniyor…</div></div>
+  <div class="top-actions">
+    <button id="btn-plan" class="active" onclick="showView('plan')">Üretim Planı</button>
+    <button id="btn-history" onclick="showView('history')">Geçmiş Dökümler</button>
+    <form action="/logout" method="post" style="margin:0"><button type="submit">Çıkış</button></form>
+  </div>
+</header>
+<main class="shell"><section class="card"><div id="content"><div class="loading">Plan yükleniyor…</div></div></section></main>
 <script>
-const escapeHtml=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[char]));
+const escapeHtml=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+function safeColor(v,f){return /^#[0-9a-f]{3,8}$/i.test(v||"")?v:f}
+
+let currentView='plan';
+let historyRecords=[];
+let historyFilter='';
+let historyDiameter='';
+
+function showView(view){
+  currentView=view;
+  document.getElementById('btn-plan').classList.toggle('active',view==='plan');
+  document.getElementById('btn-history').classList.toggle('active',view==='history');
+  document.getElementById('page-title').textContent=view==='plan'?'Üretim Planı':'Geçmiş Dökümler';
+  if(view==='plan'){loadPlan();}else{loadHistory();}
+}
+
 async function loadPlan(){
+  const content=document.getElementById("content");
   const response=await fetch("/api/plan",{cache:"no-store"});
   if(response.status===401){location.reload();return}
-  const data=await response.json(),plan=data.plan,content=document.getElementById("content");
+  const data=await response.json(),plan=data.plan;
   if(!plan){content.innerHTML='<div class="empty">Henüz bir plan gönderilmedi.</div>';document.getElementById("updated").textContent="Son plan bekleniyor";return}
   document.getElementById("updated").textContent="Son güncelleme: "+(plan.generatedAtText||new Date(data.updatedAt).toLocaleString("tr-TR"));
-  const head=plan.headers.map(header=>'<th>'+escapeHtml(header)+'</th>').join("");
+  const head=plan.headers.map(h=>'<th>'+escapeHtml(h)+'</th>').join("");
   const rows=plan.rows.map(row=>'<tr>'+row.cells.map(cell=>'<td style="background:'+safeColor(row.background,"#fff")+';color:'+safeColor(row.foreground,"#111")+'">'+escapeHtml(cell)+'</td>').join("")+'</tr>').join("");
-  content.innerHTML='<table><thead><tr>'+head+'</tr></thead><tbody>'+rows+'</tbody></table>';
+  content.innerHTML='<div class="scroll"><table><thead><tr>'+head+'</tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
-function safeColor(value,fallback){return /^#[0-9a-f]{3,8}$/i.test(value||"")?value:fallback}
+
+async function loadHistory(){
+  const content=document.getElementById("content");
+  content.innerHTML='<div class="loading">Geçmiş yükleniyor…</div>';
+  document.getElementById("updated").textContent="";
+  try{
+    const response=await fetch("/api/history",{cache:"no-store"});
+    if(response.status===401){location.reload();return}
+    const data=await response.json();
+    historyRecords=data.records||[];
+    const upd=data.updatedAt?new Date(data.updatedAt).toLocaleString("tr-TR"):"";
+    document.getElementById("updated").textContent=upd?"Son güncelleme: "+upd:historyRecords.length+" kayıt";
+    renderHistory();
+  }catch(e){
+    content.innerHTML='<div class="empty">Geçmiş yüklenemedi. Sayfayı yenileyin.</div>';
+  }
+}
+
+function renderHistory(){
+  const content=document.getElementById("content");
+  const q=historyFilter.toLowerCase();
+  const diam=historyDiameter;
+  let records=historyRecords;
+  if(q) records=records.filter(r=>
+    String(r.lot||'').includes(q)||
+    (r.customer||'').toLowerCase().includes(q)||
+    (r.quality||'').toLowerCase().includes(q)||
+    (r.note||'').toLowerCase().includes(q)
+  );
+  if(diam) records=records.filter(r=>String(r.diameter||'')=== diam);
+
+  const diameters=[...new Set(historyRecords.map(r=>String(r.diameter||'')).filter(Boolean))].sort();
+  const diamOptions=diameters.map(d=>'<option value="'+escapeHtml(d)+'"'+(diam===d?' selected':'')+'>'+escapeHtml(d)+' mm</option>').join('');
+
+  const headers=['Tarih','Çap','Müşteri','Lot','Boy','Kalite','Analiz','Not'];
+  const head=headers.map(h=>'<th>'+h+'</th>').join('');
+
+  const rows=records.map(r=>{
+    const completedAt=r.completedAt?new Date(r.completedAt).toLocaleString("tr-TR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"";
+    const isKm=(r.customer||'').toUpperCase()==='KM';
+    const bg=isKm?'#e0f2fe':'#fff';
+    const fg=isKm?'#0c4a6e':'#17212b';
+    return '<tr>'
+      +'<td style="background:'+bg+';color:'+fg+'">'+escapeHtml(completedAt)+'</td>'
+      +'<td style="background:'+bg+';color:'+fg+'">'+escapeHtml(r.diameter||'')+'</td>'
+      +'<td style="background:'+bg+';color:'+fg+'">'+escapeHtml(r.customer||'')+'</td>'
+      +'<td style="background:'+bg+';color:'+fg+'">'+escapeHtml(r.lot||'')+'</td>'
+      +'<td style="background:'+bg+';color:'+fg+'">'+escapeHtml(r.length||'')+'</td>'
+      +'<td style="background:'+bg+';color:'+fg+'">'+escapeHtml(r.quality||'')+'</td>'
+      +'<td style="background:'+bg+';color:'+fg+';text-align:left">'+escapeHtml(r.analysis||'')+'</td>'
+      +'<td style="background:'+bg+';color:'+fg+';text-align:left">'+escapeHtml(r.note||'')+'</td>'
+      +'</tr>';
+  }).join('');
+
+  const empty=records.length===0?'<div class="empty">'+(historyRecords.length===0?'Henüz tamamlanan döküm kaydı yok.':'Arama kriterlerine uyan kayıt bulunamadı.')+'</div>':'';
+
+  content.innerHTML=
+    '<div class="hist-search">'
+      +'<input type="search" placeholder="Müşteri, lot, kalite ara…" value="'+escapeHtml(historyFilter)+'" oninput="historyFilter=this.value;renderHistory()" />'
+      +'<select onchange="historyDiameter=this.value;renderHistory()"><option value="">Tüm çaplar</option>'+diamOptions+'</select>'
+    +'</div>'
+    +(empty||'<div class="scroll"><table><thead><tr>'+head+'</tr></thead><tbody>'+rows+'</tbody></table></div>');
+}
+
 loadPlan().catch(()=>{document.getElementById("content").innerHTML='<div class="empty">Plan yüklenemedi. Sayfayı yenileyin.</div>'});
-setInterval(()=>loadPlan().catch(()=>{}),15000);
+setInterval(()=>{if(currentView==='plan')loadPlan().catch(()=>{});},15000);
 </script></body></html>`;
 }
 
