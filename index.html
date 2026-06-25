@@ -9003,6 +9003,22 @@
                 casting.diameter = order.diameter;
                 casting.status = `Müşteri: ${order.orderCode ? order.orderCode + " - " : ""}${upperText(order.customer)} - ${casting.length}mm${order.quality ? " - " + upperText(order.quality) : ""}`;
             });
+
+            // manualKmSlots çapını kesin referans olarak uygula.
+            // pendingOrders içindeki eski/uyumsuz bir order.diameter değeri
+            // casting.diameter'ı ezerek simülasyonun yanlış çap sayması sorununu önler.
+            manualKmSlots.forEach(preference => {
+                if (!Number.isInteger(preference.slotNumber) || !diameters[preference.diameter]) return;
+                const casting = castings.find(c => c.slotNumber === preference.slotNumber);
+                if (!casting || casting.type !== "own") return;
+                if (casting.diameter !== preference.diameter) {
+                    casting.diameter = preference.diameter;
+                    // Plan tablosundaki gösterimi de senkronize et
+                    const order = pendingOrders.find(o => o.assignedSlot === preference.slotNumber && isKmOrder(o));
+                    if (order) order.diameter = preference.diameter;
+                }
+            });
+
             savePendingOrders();
         }
 

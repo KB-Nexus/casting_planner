@@ -1,5 +1,1 @@
-Güncelleme artık otomatik: uygulama açılırken güncelleme varsa seçenek sunmadan indirir ve yükler.
-
-- "Güncelle / Şimdi değil" ekranı kaldırıldı.
-- İndirme ilerlemesi progress bar ile gösteriliyor.
-- Kurulum tamamlanınca uygulama otomatik yeniden başlıyor.
+Stok simülasyonu ve slot sonu stok çap hesaplama hatası düzeltildi: KM slotunda kullanıcının seçtiği çap artık simülasyonda da doğru uygulanıyor.
