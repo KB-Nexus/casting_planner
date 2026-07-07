@@ -1,1 +1,4 @@
-Web görünümüne "Geçmiş Dökümler" eklendi: tamamlanan dökümleri müşteri, lot ve kaliteye göre arayarak görüntüleyebilirsiniz.
+- Ortak ağ dosyasına kayıt sırasında geçici ağ kopmalarının kilidi kalıcı olarak düşürüp sürekli "Kayıt hatası" vermesi sorunu düzeltildi.
+- Kayıt işlemi hızlandırıldı: yedekleme artık her kayıtta değil belirli aralıklarla alınıyor, kaydedilen veri boyutu küçültüldü.
+- Listede müşteri kodu tanımlanmamış bir müşteri varsa Plan Çıktısı artık açılmıyor; ekranda hangi lotun müşteri kodunun eksik olduğunu gösteren bir uyarı penceresi çıkıyor.
+- Müşteri analizlerinde nadiren oluşan çakışan kayıt numarası (id) hatası düzeltildi: bir alaşımın analizini değiştirirken başka bir alaşımın yanlışlıkla üzerine yazılması sorunu giderildi.

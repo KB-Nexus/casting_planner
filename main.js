@@ -127,7 +127,20 @@ function releaseLockSync() {
 
 async function checkAndAcquireLock() {
     if (lockAcquired) return { ok: true };
-    return { ok: false, reason: 'lock_lost', info: await readLockInfo() };
+    // lockAcquired oturum içinde (ör. geçici bir ağ kopması sırasında) düşmüş
+    // olabilir. Kilit dosyası hâlâ bize aitse veya tamamen kaybolmuşsa ve
+    // kimse başka bir kilit almamışsa, kaydetmeyi engellemek yerine sessizce
+    // yeniden kurmayı dene.
+    const existing = await readLockInfo();
+    if (existing && existing.token === lockToken) {
+        lockAcquired = true;
+        startLockHeartbeat();
+        return { ok: true };
+    }
+    if (!existing && await writeLock()) {
+        return { ok: true };
+    }
+    return { ok: false, reason: 'locked', info: existing };
 }
 
 function lockOwnerText(info) {
@@ -149,15 +162,26 @@ function startLockHeartbeat() {
     lockHeartbeatTimer = setInterval(async () => {
         if (!lockAcquired) return;
         try {
-            const info = await readLockInfo();
+            const content = await withTimeout(fsp.readFile(LOCK_FILE, 'utf8'), NETWORK_TIMEOUT_MS);
+            const info = JSON.parse(content);
             if (!info || info.token !== lockToken) {
+                // Kilit dosyası gerçekten başka biri tarafından alınmış/değiştirilmiş.
                 lockAcquired = false;
                 stopLockHeartbeat();
                 return;
             }
             const now = new Date();
             await withTimeout(fsp.utimes(LOCK_FILE, now, now), NETWORK_TIMEOUT_MS);
-        } catch { /* sonraki heartbeat tekrar dener */ }
+        } catch (error) {
+            if (error && error.code === 'ENOENT') {
+                // Kilit dosyası gerçekten silinmiş — kilit gerçekten kaybedildi.
+                lockAcquired = false;
+                stopLockHeartbeat();
+            }
+            // Zaman aşımı veya geçici ağ kopması gibi diğer hatalarda kilidi
+            // koru; okuma başarısız oldu diye elimizdeki kilidi bırakmayalım.
+            // Bir sonraki heartbeat'te tekrar denenecek.
+        }
     }, LOCK_HEARTBEAT_MS);
 }
 
@@ -248,11 +272,20 @@ async function rotateBackups() {
     } catch { /* ignore */ }
 }
 
+// Her kayıtta değil, en fazla belirli aralıkla yedek alınır — sık otomatik
+// kayıtları (her düzenlemede tetiklenir) yavaşlatmamak için.
+let lastBackupTime = 0;
+const BACKUP_MIN_INTERVAL_MS = 5 * 60 * 1000;
+
 async function createBackup(stamp) {
     try {
+        // Dosyayı tek seferde oku, hem ağ hem yerel yedeğe aynı içeriği yaz —
+        // iki ayrı copyFile yerine tek okuma ile ağ trafiğini yarıya indirir.
+        const content = await withTimeout(fsp.readFile(DATA_FILE, 'utf8'), NETWORK_TIMEOUT_MS);
+
         await rotateBackups();
         const backupFile = path.join(BACKUP_DIR, `data_${stamp}.json`);
-        await withTimeout(fsp.copyFile(DATA_FILE, backupFile), NETWORK_TIMEOUT_MS);
+        await withTimeout(fsp.writeFile(backupFile, content, 'utf8'), NETWORK_TIMEOUT_MS);
 
         // Yerel güvenlik yedeği — sadece yazma, otomatik okunmaz
         try {
@@ -263,7 +296,7 @@ async function createBackup(stamp) {
             while (localFiles.length >= MAX_LOCAL_BACKUPS) {
                 await fsp.unlink(path.join(LOCAL_BACKUP_DIR, localFiles.shift()));
             }
-            await fsp.copyFile(DATA_FILE, path.join(LOCAL_BACKUP_DIR, `data_${stamp}.json`));
+            await fsp.writeFile(path.join(LOCAL_BACKUP_DIR, `data_${stamp}.json`), content, 'utf8');
         } catch { /* yerel yedek hatası ana akışı etkilemez */ }
     } catch { /* ignore */ }
 }
@@ -484,10 +517,13 @@ ipcMain.handle('network-save', async (event, data) => {
     const lockResult = await checkAndAcquireLock();
     if (!lockResult.ok) return lockResult;
     try {
-        const stamp = makeStamp();
-        // Önce mevcut dosya var mı kontrol et (yedek için)
-        try { await fsp.access(DATA_FILE); await createBackup(stamp); } catch { /* ilk kayıt */ }
-        await atomicWrite(JSON.stringify(data, null, 2));
+        const now = Date.now();
+        if (now - lastBackupTime >= BACKUP_MIN_INTERVAL_MS) {
+            lastBackupTime = now;
+            // Önce mevcut dosya var mı kontrol et (yedek için)
+            try { await fsp.access(DATA_FILE); await createBackup(makeStamp()); } catch { /* ilk kayıt */ }
+        }
+        await atomicWrite(JSON.stringify(data));
         return { ok: true };
     } catch (err) {
         return { ok: false, reason: 'write_error', message: err.message };

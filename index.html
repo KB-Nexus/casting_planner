@@ -3148,6 +3148,81 @@
             border: 1px solid #7dd3fc;
         }
 
+        .warning-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(6px);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+        .warning-overlay.visible {
+            display: flex;
+        }
+        .warning-box {
+            background: #fff;
+            border-radius: 16px;
+            border-top: 5px solid #dc2626;
+            padding: 30px 34px 24px;
+            min-width: 300px;
+            max-width: 440px;
+            text-align: center;
+            box-shadow: 0 24px 70px rgba(0,0,0,0.35);
+            animation: warningPop 0.16s ease-out;
+        }
+        @keyframes warningPop {
+            from { transform: scale(0.92); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .warning-icon {
+            width: 54px;
+            height: 54px;
+            margin: 0 auto 14px;
+            border-radius: 50%;
+            background: #fee2e2;
+            color: #dc2626;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: 800;
+        }
+        .warning-title {
+            margin: 0 0 12px;
+            font-size: 17px;
+            font-weight: 800;
+            color: #111827;
+        }
+        .warning-message {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 700;
+            color: #7f1d1d;
+            line-height: 1.5;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 10px;
+            padding: 12px 14px;
+        }
+        .warning-btn-ok {
+            margin-top: 22px;
+            background: #dc2626;
+            color: #fff;
+            border: none;
+            border-radius: 9px;
+            padding: 9px 30px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(220,38,38,0.3);
+            transition: background 0.15s;
+        }
+        .warning-btn-ok:hover {
+            background: #b91c1c;
+        }
+
         @media (max-width: 1250px) {
             .container {
                 grid-template-columns: 1fr;
@@ -4804,6 +4879,15 @@
             </div>
         </div>
 
+        <div class="warning-overlay" id="customerCodeWarningOverlay" onclick="if (event.target === this) closeCustomerCodeMissingWarning()">
+            <div class="warning-box">
+                <div class="warning-icon">!</div>
+                <h3 class="warning-title">Müşteri Kodu Eksik</h3>
+                <p class="warning-message" id="customerCodeWarningMessage"></p>
+                <button class="warning-btn-ok" onclick="closeCustomerCodeMissingWarning()">Tamam</button>
+            </div>
+        </div>
+
         <div class="right-panel">
             <div class="panel">
                 <div class="plan-header">
@@ -5606,6 +5690,27 @@
             return getCustomerCode(customer) || normalizeCustomerValue(customer);
         }
 
+        function findCastingMissingCustomerCode(castings) {
+            return (castings || []).find(casting =>
+                casting.type === "customer" && casting.customer && !getCustomerCode(casting.customer)
+            );
+        }
+
+        function showCustomerCodeMissingWarning(lotNumber) {
+            const overlay = document.getElementById("customerCodeWarningOverlay");
+            const message = document.getElementById("customerCodeWarningMessage");
+            message.textContent = `${lotNumber} LOTLU MÜŞTERİNİN MÜŞTERİ KODU EKSİK`;
+            overlay.classList.add("visible");
+        }
+
+        function closeCustomerCodeMissingWarning() {
+            document.getElementById("customerCodeWarningOverlay").classList.remove("visible");
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") closeCustomerCodeMissingWarning();
+        });
+
         function syncCustomerCode(customer, code) {
             const customerKey = normalizeCustomerValue(customer);
             const normalizedCode = normalizeCustomerCode(code);
@@ -5633,6 +5738,13 @@
         }
 
         function ensureAnalysisPortfolioFields() {
+            const seenIds = new Set();
+            analysisPortfolio.forEach(entry => {
+                if (!entry.id || seenIds.has(entry.id)) {
+                    entry.id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                }
+                seenIds.add(entry.id);
+            });
             const codeByCustomer = {};
             const lengthByCustomer = {};
             analysisPortfolio.forEach(entry => {
@@ -11844,6 +11956,11 @@
         }
 
         async function createPlanOnlyReport() {
+            const missingCasting = findCastingMissingCustomerCode(getVisibleManualCastings().filter(c => !isEmptyReportRow(c)));
+            if (missingCasting) {
+                showCustomerCodeMissingWarning(getLotNumberForSlot(missingCasting.slotNumber));
+                return;
+            }
             if (window.networkStore && window.networkStore.openReportWindow) {
                 await window.networkStore.openReportWindow(createPlanOnlyReportHtml());
                 return;
@@ -12152,6 +12269,11 @@
         }
 
         function printPlan() {
+            const missingCasting = findCastingMissingCustomerCode(getVisibleManualCastings().filter(c => !isEmptyReportRow(c)));
+            if (missingCasting) {
+                showCustomerCodeMissingWarning(getLotNumberForSlot(missingCasting.slotNumber));
+                return;
+            }
             const html = createPlanOnlyReportHtml({ includeDateTime: false });
             if (window.networkStore && window.networkStore.openReportWindow) {
                 window.networkStore.openReportWindow(html);
@@ -12314,8 +12436,7 @@
             cloudHistorySyncDebounceTimer = setTimeout(() => syncCloudHistory(), 3000);
         }
 
-        // Ağ verisini localStorage'a yazar. Ağ her zaman tek kaynak.
-        // Timestamp karşılaştırması yok — çağıran taraf ne zaman uygulanacağına karar verir.
+        // Ağ verisini localStorage'a yazar.
         function applyNetworkData(data) {
             if (!data) return;
             if (data.settings) localStorage.setItem(STORAGE_KEY, JSON.stringify(data.settings));
@@ -12348,7 +12469,16 @@
                     return false;
                 }
                 if (result.data) {
-                    // Startup: ağ tek kaynak, her zaman uygula
+                    // Yerelde ağa hiç gönderilememiş (ör. önceki oturumda ağ hatası nedeniyle
+                    // kaydedilememiş) daha yeni değişiklikler varsa, ağın eski verisiyle
+                    // üzerine yazmak yerine önce yereldeki veriyi ağa gönder.
+                    const localLastModified = parseInt(localStorage.getItem(LOCAL_LAST_MODIFIED_KEY) || "0", 10);
+                    const networkLastModified = parseInt(result.data.lastModified || 0, 10);
+                    if (localLastModified > networkLastModified) {
+                        setNetworkStatus('warn', 'Yerel değişiklikler ağa gönderiliyor...');
+                        await syncToNetwork();
+                        return true;
+                    }
                     applyNetworkData(result.data);
                 }
                 setNetworkStatus('ok', 'Ağ bağlı');
