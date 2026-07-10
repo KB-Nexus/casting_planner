@@ -6464,6 +6464,11 @@
                 if (!customer && !quality && !length) {
                     return;
                 }
+                // Aynı slota atanmış birden fazla sipariş varsa, canlı tabloyla aynı
+                // mantıkla (ilk eşleşen kazanır) tutarlı kalmak için sonrakileri yok say.
+                if (rowMap.has(order.assignedSlot)) {
+                    return;
+                }
                 rowMap.set(order.assignedSlot, {
                     slot: order.assignedSlot,
                     lot: baseLot === null ? "" : baseLot + order.assignedSlot - 1,
@@ -9124,10 +9129,22 @@
                 const casting = castings.find(c => c.slotNumber === preference.slotNumber);
                 if (!casting || casting.type !== "own") return;
                 if (casting.diameter !== preference.diameter) {
+                    const wasDefaultAnalysis = (casting.analysis || "").trim() === (getKmAnalysis(casting.diameter) || "").trim();
                     casting.diameter = preference.diameter;
+                    if (wasDefaultAnalysis) {
+                        casting.analysis = getKmAnalysis(preference.diameter);
+                        casting.quality = getKmDefaultQuality(preference.diameter);
+                    }
                     // Plan tablosundaki gösterimi de senkronize et
                     const order = pendingOrders.find(o => o.assignedSlot === preference.slotNumber && isKmOrder(o));
-                    if (order) order.diameter = preference.diameter;
+                    if (order) {
+                        order.diameter = preference.diameter;
+                        if (wasDefaultAnalysis && !order.analysisId) {
+                            order.quality = casting.quality;
+                            order.analysis = casting.analysis;
+                            order.customAnalysis = casting.analysis;
+                        }
+                    }
                 }
             });
 
