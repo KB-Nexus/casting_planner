@@ -1,2 +1,2 @@
-- KM slotlarında çap değiştirildiğinde Planı Kopyala ve Plan Çıktısı'nda eski çapa ait analiz değerlerinin gösterilmesi sorunu düzeltildi.
-- Listeyi Kaydet önizlemesinde bazı KM slotlarının (aynı slota atanmış eski/tekrarlı sipariş kaydı yüzünden) yanlış çap göstermesi sorunu düzeltildi.
+- Müşteri portföyünde çapa özel analize artık açıklama ve boy da eklenebiliyor.
+- Sipariş listesinde çap değiştirildiğinde, o çapa özel tanımlı analiz, açıklama ve boy artık otomatik uygulanıyor.

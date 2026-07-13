@@ -7130,6 +7130,8 @@
             const diam = document.getElementById("newDiamOverrideDiam")?.value || "";
             const quality = normalizeQualityValue(document.getElementById("newDiamOverrideQuality")?.value || "");
             const analysis = document.getElementById("newDiamOverrideAnalysis")?.value.trim() || "";
+            const note = document.getElementById("newDiamOverrideNote")?.value.trim() || "";
+            const length = document.getElementById("newDiamOverrideLength")?.value.trim() || "";
             if (!diam || !quality || !analysis) {
                 showAlert("Çap, kalite ve analiz girin.", "error");
                 return;
@@ -7140,7 +7142,7 @@
                 return;
             }
             if (!entry.diameterOverrides) entry.diameterOverrides = {};
-            entry.diameterOverrides[diam] = analysis;
+            entry.diameterOverrides[diam] = { analysis, note, length };
             addingDiameterOverride = false;
             editingCustomerAnalysisId = "";
             saveAnalysisPortfolio();
@@ -7149,10 +7151,27 @@
         }
 
         function getAnalysisForDiameter(entry, diameter) {
-            if (entry.diameterOverrides && entry.diameterOverrides[diameter]) {
-                return entry.diameterOverrides[diameter];
+            const override = entry.diameterOverrides && entry.diameterOverrides[diameter];
+            if (override) {
+                return typeof override === 'string' ? override : (override.analysis || "");
             }
             return entry.analysis || "";
+        }
+
+        function getNoteForDiameter(entry, diameter) {
+            const override = entry.diameterOverrides && entry.diameterOverrides[diameter];
+            if (override && typeof override === 'object' && override.note) {
+                return override.note;
+            }
+            return entry.note || "";
+        }
+
+        function getLengthForDiameter(entry, diameter) {
+            const override = entry.diameterOverrides && entry.diameterOverrides[diameter];
+            if (override && typeof override === 'object' && override.length) {
+                return String(override.length);
+            }
+            return "";
         }
 
         function editDiameterAnalysis(entryId, diameter) {
@@ -7169,13 +7188,17 @@
             const entry = analysisPortfolio.find(e => e.id === entryId);
             if (!entry) return;
             const textarea = document.getElementById("diam_edit_" + entryId + "_" + diameter);
+            const noteTextarea = document.getElementById("diam_edit_note_" + entryId + "_" + diameter);
+            const lengthInput = document.getElementById("diam_edit_length_" + entryId + "_" + diameter);
             const analysis = textarea ? textarea.value.trim() : "";
+            const note = noteTextarea ? noteTextarea.value.trim() : "";
+            const length = lengthInput ? lengthInput.value.trim() : "";
             if (!analysis) { showAlert("Analiz boş olamaz.", "error"); return; }
             if (!entry.diameterOverrides) entry.diameterOverrides = {};
-            if (analysis === entry.analysis) {
+            if (analysis === entry.analysis && note === (entry.note || "") && !length) {
                 delete entry.diameterOverrides[diameter];
             } else {
-                entry.diameterOverrides[diameter] = analysis;
+                entry.diameterOverrides[diameter] = { analysis, note, length };
             }
             editingCustomerAnalysisId = "";
             saveAnalysisPortfolio();
@@ -7556,19 +7579,28 @@
             const allOverrides = [];
             entries.forEach(entry => {
                 if (entry.diameterOverrides && typeof entry.diameterOverrides === 'object') {
-                    Object.entries(entry.diameterOverrides).forEach(([diam, analysis]) => {
-                        if (analysis) allOverrides.push({ entry, diam, analysis });
+                    Object.entries(entry.diameterOverrides).forEach(([diam, override]) => {
+                        const analysis = typeof override === 'string' ? override : (override && override.analysis) || "";
+                        const note = typeof override === 'object' && override ? (override.note || "") : "";
+                        const length = typeof override === 'object' && override ? (override.length || "") : "";
+                        if (analysis) allOverrides.push({ entry, diam, analysis, note, length });
                     });
                 }
             });
             allOverrides.sort((a, b) => parseInt(a.diam) - parseInt(b.diam) || a.entry.quality.localeCompare(b.entry.quality, 'tr'));
 
-            const overrideRowsHtml = allOverrides.map(({ entry, diam, analysis }) => {
+            const overrideRowsHtml = allOverrides.map(({ entry, diam, analysis, note, length }) => {
                 const editKey = entry.id + "__" + diam;
                 if (editingCustomerAnalysisId === editKey) {
                     return `<div class="diam-quality-row editing">
                         <span class="diam-quality-name">${diam}mm – ${escapeHtml(entry.quality)}</span>
                         <textarea class="diam-analysis-textarea" id="diam_edit_${entry.id}_${diam}">${escapeHtml(analysis)}</textarea>
+                        <textarea class="diam-analysis-textarea" id="diam_edit_note_${entry.id}_${diam}" placeholder="Açıklama">${escapeHtml(note)}</textarea>
+                        <label class="customer-length-field">
+                            <span>Boy:</span>
+                            <input type="number" id="diam_edit_length_${entry.id}_${diam}" value="${escapeHtml(length)}" placeholder="6000" min="1" step="1">
+                            <span>mm</span>
+                        </label>
                         <div class="analysis-card-actions">
                             <button type="button" onclick="saveDiameterAnalysis('${entry.id}','${diam}')">Kaydet</button>
                             <button type="button" onclick="cancelDiameterEdit()">İptal</button>
@@ -7577,8 +7609,9 @@
                     </div>`;
                 }
                 return `<div class="diam-quality-row">
-                    <span class="diam-quality-name override">${diam}mm – ${escapeHtml(entry.quality)}</span>
+                    <span class="diam-quality-name override">${diam}mm – ${escapeHtml(entry.quality)}${length ? ` · Boy: ${escapeHtml(length)}mm` : ""}</span>
                     <pre class="diam-analysis-pre">${escapeHtml(analysis)}</pre>
+                    ${note ? `<pre class="diam-analysis-pre diam-note-pre">${escapeHtml(note)}</pre>` : ""}
                     <div class="analysis-card-actions">
                         <button type="button" onclick="editDiameterAnalysis('${entry.id}','${diam}')">Düzenle</button>
                         <button type="button" class="danger" onclick="resetDiameterAnalysis('${entry.id}','${diam}')">Sil</button>
@@ -7597,8 +7630,10 @@
                             <option value="">Kalite seç</option>
                             ${qualityOptions}
                         </select>
+                        <input type="number" id="newDiamOverrideLength" placeholder="Boy (mm)" min="1" step="1" style="width:110px">
                     </div>
                     <textarea id="newDiamOverrideAnalysis" placeholder="Bu çap için özel analiz"></textarea>
+                    <textarea id="newDiamOverrideNote" placeholder="Açıklama"></textarea>
                     <div class="analysis-card-actions">
                         <button type="button" onclick="saveNewDiameterOverride(decodeURIComponent('${encodedCustomer}'))">Kaydet</button>
                         <button type="button" onclick="cancelAddDiameterOverride()">İptal</button>
@@ -8193,9 +8228,9 @@
                 }
                 order.analysisId = matchedAnalysis.id;
                 order.customAnalysis = "";
-                order.analysis = matchedAnalysis.analysis;
+                order.analysis = getAnalysisForDiameter(matchedAnalysis, order.diameter || "") || matchedAnalysis.analysis;
                 if (options.forceNote || !String(order.note || "").trim()) {
-                    order.note = matchedAnalysis.note || "";
+                    order.note = getNoteForDiameter(matchedAnalysis, order.diameter || "") || matchedAnalysis.note || "";
                 }
             }
         }
@@ -8260,7 +8295,7 @@
                 order.analysisId = matchedAnalysis.id;
                 order.customAnalysis = "";
                 order.analysis = getAnalysisForDiameter(matchedAnalysis, order.diameter) || matchedAnalysis.analysis;
-                if (!String(order.note || "").trim()) order.note = matchedAnalysis.note || "";
+                if (!String(order.note || "").trim()) order.note = getNoteForDiameter(matchedAnalysis, order.diameter) || matchedAnalysis.note || "";
             } else {
                 // Portföyde bu kalite yok, son siparişten al
                 if (defaults.length) order.length = capCustomerLength(defaults.length, order.diameter);
@@ -8285,9 +8320,15 @@
                 }
                 order.diameter = String(value);
                 if (!wasKmOrder) {
-                    const customerLength = getCustomerDefaultLength(order.customer);
+                    const matchedAnalysis = order.analysisId ? analysisPortfolio.find(e => e.id === order.analysisId) : null;
+                    const diameterLength = matchedAnalysis ? getLengthForDiameter(matchedAnalysis, order.diameter) : "";
+                    const customerLength = diameterLength || getCustomerDefaultLength(order.customer);
                     const preferredLength = customerLength || order.length;
                     order.length = capCustomerLength(preferredLength, order.diameter);
+                    if (matchedAnalysis) {
+                        order.analysis = getAnalysisForDiameter(matchedAnalysis, order.diameter) || matchedAnalysis.analysis;
+                        order.note = getNoteForDiameter(matchedAnalysis, order.diameter) || matchedAnalysis.note || "";
+                    }
                 }
             } else if (field === "customer") {
                 order.customer = upperText(value).trim();
