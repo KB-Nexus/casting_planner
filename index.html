@@ -5662,6 +5662,22 @@
             return analysisPortfolio.filter(entry => normalizeCustomerValue(entry.customer) === customerKey);
         }
 
+        function getNextAvailableCustomerCode() {
+            const used = new Set();
+            analysisPortfolio.forEach(entry => {
+                const code = normalizeCustomerCode(entry.customerCode);
+                const match = /^M(\d+)$/.exec(code);
+                if (match) {
+                    used.add(parseInt(match[1], 10));
+                }
+            });
+            let n = 1;
+            while (used.has(n)) {
+                n++;
+            }
+            return `M${n}`;
+        }
+
         function getCustomerCode(customer) {
             const entries = getCustomerEntries(customer);
             const codedEntry = entries.find(entry => normalizeCustomerCode(entry.customerCode));
@@ -7511,7 +7527,7 @@
                         </div>
                         <div class="new-customer-grid">
                             <input type="text" id="newAnalysisCustomerName" placeholder="Müşteri adı" oninput="this.value = this.value.toLocaleUpperCase('tr-TR')">
-                            <input type="text" id="newAnalysisCustomerCode" placeholder="Kod" oninput="this.value = this.value.toLocaleUpperCase('tr-TR')">
+                            <input type="text" id="newAnalysisCustomerCode" placeholder="${escapeHtml(getNextAvailableCustomerCode())}" oninput="this.value = this.value.toLocaleUpperCase('tr-TR')">
                             <input type="number" id="newAnalysisCustomerLength" placeholder="Boy" min="1" step="1">
                             <input type="text" id="newAnalysisCustomerQuality" list="qualityPortfolioOptions" placeholder="Kalite" oninput="this.value = this.value.toLocaleUpperCase('tr-TR')">
                         </div>
@@ -7766,7 +7782,19 @@
                 groups[customer].push(entry);
                 return groups;
             }, {});
-            const customerNames = Object.keys(grouped).sort((a, b) => a.localeCompare(b, "tr"));
+            const customerNames = Object.keys(grouped).sort((a, b) => {
+                const codeA = getCustomerCode(a);
+                const codeB = getCustomerCode(b);
+                if (codeA && codeB) {
+                    const numA = parseInt(codeA.replace(/[^0-9]/g, ""), 10);
+                    const numB = parseInt(codeB.replace(/[^0-9]/g, ""), 10);
+                    if (!isNaN(numA) && !isNaN(numB) && numA !== numB) return numB - numA;
+                    return codeB.localeCompare(codeA, "tr");
+                }
+                if (codeA) return -1;
+                if (codeB) return 1;
+                return a.localeCompare(b, "tr");
+            });
 
             if (countLabel) {
                 countLabel.textContent = `(${getPortfolioCustomers().length} müşteri / ${analysisPortfolio.length} analiz)`;
@@ -7791,7 +7819,7 @@
                             </svg>
                         </button>
                         <strong>${escapeHtml(customer)}</strong>
-                        <input type="text" value="${escapeHtml(getCustomerCode(customer))}" placeholder="M1" onclick="event.stopPropagation()" oninput="this.value = this.value.toLocaleUpperCase('tr-TR')" onchange="updateAnalysisCustomerCode(decodeURIComponent('${encodedCustomer}'), this.value)">
+                        <input type="text" value="${escapeHtml(getCustomerCode(customer))}" placeholder="${escapeHtml(getNextAvailableCustomerCode())}" onclick="event.stopPropagation()" oninput="this.value = this.value.toLocaleUpperCase('tr-TR')" onchange="updateAnalysisCustomerCode(decodeURIComponent('${encodedCustomer}'), this.value)">
                         <label class="customer-length-field" onclick="event.stopPropagation()">
                             <span>Boy:</span>
                             <input type="number" value="${escapeHtml(length)}" placeholder="6000" min="1" step="1" onchange="updateAnalysisCustomerLength(decodeURIComponent('${encodedCustomer}'), this.value)">
@@ -12527,16 +12555,13 @@
                     return false;
                 }
                 if (result.data) {
-                    // Yerelde ağa hiç gönderilememiş (ör. önceki oturumda ağ hatası nedeniyle
-                    // kaydedilememiş) daha yeni değişiklikler varsa, ağın eski verisiyle
-                    // üzerine yazmak yerine önce yereldeki veriyi ağa gönder.
-                    const localLastModified = parseInt(localStorage.getItem(LOCAL_LAST_MODIFIED_KEY) || "0", 10);
-                    const networkLastModified = parseInt(result.data.lastModified || 0, 10);
-                    if (localLastModified > networkLastModified) {
-                        setNetworkStatus('warn', 'Yerel değişiklikler ağa gönderiliyor...');
-                        await syncToNetwork();
-                        return true;
-                    }
+                    // Bulut tek doğru veri kaynağıdır — uygulama zaten buluta
+                    // ulaşamadan açılamadığı için "ağdayken kaydedilememiş yerel
+                    // değişiklik" senaryosu artık mümkün değil. Eskiden burada
+                    // localStorage'daki zaman damgası ağınkinden büyükse yerel
+                    // veri ağa gönderiliyordu; bu, eski/bayat bir PC'nin
+                    // localStorage'ını gerçek veri üzerine yazmasına yol açan
+                    // bir veri kaybı riskiydi ve kaldırıldı.
                     applyNetworkData(result.data);
                 }
                 setNetworkStatus('ok', 'Ağ bağlı');
@@ -12617,6 +12642,16 @@
                         const info = result.info || {};
                         const t = info.time ? new Date(info.time).toLocaleTimeString('tr-TR') : '';
                         setNetworkStatus('error', `Kilitli: ${info.username || '?'}@${info.hostname || '?'} (${t})`);
+                    } else if (result.reason === 'version_conflict') {
+                        // Beklenmedik durum: kilit sistemi normalde tek yazarı garanti eder.
+                        // Ana süreç sunucudaki güncel sürüm numarasını kendi içinde
+                        // güncelledi; yerel veriyi bozmadan kaydı kısa süre sonra tekrar dener.
+                        setNetworkStatus('warn', 'Çakışma tespit edildi, yeniden deneniyor');
+                        if (networkSyncDebounceTimer) clearTimeout(networkSyncDebounceTimer);
+                        networkSyncDebounceTimer = setTimeout(() => {
+                            networkSyncDebounceTimer = null;
+                            syncToNetwork();
+                        }, 1000);
                     } else {
                         setNetworkStatus('error', 'Kayıt hatası');
                     }

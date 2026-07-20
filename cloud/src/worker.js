@@ -16,6 +16,30 @@ export default {
     if (url.pathname === "/api/history-upload" && request.method === "POST") {
       return uploadHistory(request, env);
     }
+    if (url.pathname === "/api/state" && request.method === "GET") {
+      return getAppState(request, env);
+    }
+    if (url.pathname === "/api/state" && request.method === "POST") {
+      return saveAppState(request, env);
+    }
+    if (url.pathname === "/api/state/backups" && request.method === "GET") {
+      return listAppStateBackups(request, env);
+    }
+    if (url.pathname.startsWith("/api/state/backups/") && request.method === "GET") {
+      return loadAppStateBackup(request, env, url.pathname.slice("/api/state/backups/".length));
+    }
+    if (url.pathname === "/api/lock/acquire" && request.method === "POST") {
+      return acquireLock(request, env);
+    }
+    if (url.pathname === "/api/lock/heartbeat" && request.method === "POST") {
+      return heartbeatLock(request, env);
+    }
+    if (url.pathname === "/api/lock/release" && request.method === "POST") {
+      return releaseLock(request, env);
+    }
+    if (url.pathname === "/api/lock/status" && request.method === "GET") {
+      return lockStatus(request, env);
+    }
     if (url.pathname === "/api/plan" && request.method === "GET") {
       if (!(await hasValidSession(request, env))) return json({ error: "unauthorized" }, 401);
       const record = await env.DB.prepare(
@@ -115,6 +139,226 @@ async function uploadPlan(request, env) {
     ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at
   `).bind(payload, updatedAt).run();
   return json({ ok: true, updatedAt });
+}
+
+const MAX_APP_STATE_BYTES = 8_000_000;
+const MAX_APP_STATE_BACKUPS = 30;
+const APP_STATE_BACKUP_MIN_INTERVAL_MS = 5 * 60 * 1000;
+
+async function requireUploadAuth(request, env) {
+  const authorization = request.headers.get("Authorization") || "";
+  return secureEqual(authorization, `Bearer ${env.UPLOAD_TOKEN || ""}`);
+}
+
+function makeStamp(date) {
+  const pad = n => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`;
+}
+
+async function getAppState(request, env) {
+  if (!(await requireUploadAuth(request, env))) return json({ error: "unauthorized" }, 401);
+  const record = await env.DB.prepare(
+    "SELECT payload, version, updated_at FROM app_state WHERE id = 1"
+  ).first();
+  if (!record) return json({ payload: null, version: 0, updatedAt: null });
+  return json({ payload: JSON.parse(record.payload), version: record.version, updatedAt: record.updated_at });
+}
+
+async function saveAppState(request, env) {
+  if (!(await requireUploadAuth(request, env))) return json({ error: "unauthorized" }, 401);
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "invalid_json" }, 400);
+  }
+  const { payload, expectedVersion, username, hostname, token } = body || {};
+  if (payload === undefined || typeof expectedVersion !== "number" || !token) {
+    return json({ error: "invalid_payload" }, 400);
+  }
+  const payloadText = JSON.stringify(payload);
+  if (payloadText.length > MAX_APP_STATE_BYTES) {
+    return json({ error: "payload_too_large" }, 413);
+  }
+
+  const nowIso = new Date().toISOString();
+  const lock = await env.DB.prepare(
+    "SELECT token, username, hostname, expires_at FROM app_lock WHERE id = 1"
+  ).first();
+  const lockHeld = lock && lock.token && lock.expires_at && lock.expires_at >= nowIso;
+  if (lockHeld && lock.token !== token) {
+    return json({
+      error: "locked",
+      lock: { username: lock.username, hostname: lock.hostname, expiresAt: lock.expires_at },
+    }, 423);
+  }
+
+  const current = await env.DB.prepare("SELECT version FROM app_state WHERE id = 1").first();
+  const currentVersion = current ? current.version : 0;
+  if (currentVersion !== expectedVersion) {
+    return json({ error: "version_conflict", currentVersion }, 409);
+  }
+
+  const nextVersion = currentVersion + 1;
+  const updateResult = await env.DB.prepare(`
+    INSERT INTO app_state (id, payload, version, updated_at, updated_by_username, updated_by_hostname)
+    VALUES (1, ?1, 1, ?2, ?3, ?4)
+    ON CONFLICT(id) DO UPDATE SET
+      payload = excluded.payload,
+      version = ?5,
+      updated_at = excluded.updated_at,
+      updated_by_username = excluded.updated_by_username,
+      updated_by_hostname = excluded.updated_by_hostname
+    WHERE app_state.version = ?6
+  `).bind(payloadText, nowIso, username || null, hostname || null, nextVersion, currentVersion).run();
+
+  if (!updateResult.meta || updateResult.meta.changes === 0) {
+    return json({ error: "version_conflict", currentVersion }, 409);
+  }
+
+  await maybeCreateAppStateBackup(env, payloadText, nextVersion, username, hostname, nowIso);
+
+  return json({ version: nextVersion, updatedAt: nowIso });
+}
+
+async function maybeCreateAppStateBackup(env, payloadText, version, username, hostname, nowIso) {
+  const last = await env.DB.prepare(
+    "SELECT created_at FROM app_state_backup ORDER BY id DESC LIMIT 1"
+  ).first();
+  if (last && last.created_at && (Date.parse(nowIso) - Date.parse(last.created_at)) < APP_STATE_BACKUP_MIN_INTERVAL_MS) {
+    return;
+  }
+  const stamp = makeStamp(new Date(nowIso));
+  await env.DB.batch([
+    env.DB.prepare(`
+      INSERT INTO app_state_backup (stamp, payload, version, created_at, created_by_username, created_by_hostname)
+      VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+    `).bind(stamp, payloadText, version, nowIso, username || null, hostname || null),
+    env.DB.prepare(`
+      DELETE FROM app_state_backup WHERE id NOT IN (
+        SELECT id FROM app_state_backup ORDER BY id DESC LIMIT ?1
+      )
+    `).bind(MAX_APP_STATE_BACKUPS),
+  ]);
+}
+
+async function listAppStateBackups(request, env) {
+  if (!(await requireUploadAuth(request, env))) return json({ error: "unauthorized" }, 401);
+  const { results } = await env.DB.prepare(`
+    SELECT stamp, created_at, created_by_username, created_by_hostname, length(payload) as sizeBytes
+    FROM app_state_backup ORDER BY id DESC LIMIT ?1
+  `).bind(MAX_APP_STATE_BACKUPS).all();
+  return json({
+    backups: (results || []).map(row => ({
+      stamp: row.stamp,
+      createdAt: row.created_at,
+      username: row.created_by_username,
+      hostname: row.created_by_hostname,
+      sizeBytes: row.sizeBytes,
+    })),
+  });
+}
+
+async function loadAppStateBackup(request, env, rawStamp) {
+  if (!(await requireUploadAuth(request, env))) return json({ error: "unauthorized" }, 401);
+  const stamp = decodeURIComponent(rawStamp || "");
+  if (!stamp) return json({ error: "not_found" }, 404);
+  const record = await env.DB.prepare(
+    "SELECT payload, version, created_at, created_by_username, created_by_hostname FROM app_state_backup WHERE stamp = ?1 ORDER BY id DESC LIMIT 1"
+  ).bind(stamp).first();
+  if (!record) return json({ error: "not_found" }, 404);
+  return json({
+    payload: JSON.parse(record.payload),
+    version: record.version,
+    createdAt: record.created_at,
+    username: record.created_by_username,
+    hostname: record.created_by_hostname,
+  });
+}
+
+async function acquireLock(request, env) {
+  if (!(await requireUploadAuth(request, env))) return json({ error: "unauthorized" }, 401);
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "invalid_json" }, 400);
+  }
+  const { token, username, hostname, leaseMs } = body || {};
+  if (!token || !leaseMs) return json({ error: "invalid_payload" }, 400);
+  const nowIso = new Date().toISOString();
+  const expiresAt = new Date(Date.now() + Number(leaseMs)).toISOString();
+
+  const result = await env.DB.prepare(`
+    UPDATE app_lock
+    SET token = ?1, username = ?2, hostname = ?3, acquired_at = ?4, renewed_at = ?4, lease_ms = ?5, expires_at = ?6
+    WHERE id = 1 AND (token IS NULL OR expires_at IS NULL OR expires_at < ?4 OR token = ?1)
+  `).bind(token, username || null, hostname || null, nowIso, Number(leaseMs), expiresAt).run();
+
+  if (!result.meta || result.meta.changes === 0) {
+    const lock = await env.DB.prepare(
+      "SELECT username, hostname, expires_at FROM app_lock WHERE id = 1"
+    ).first();
+    return json({
+      acquired: false,
+      lock: { username: lock && lock.username, hostname: lock && lock.hostname, expiresAt: lock && lock.expires_at },
+    }, 409);
+  }
+  return json({ acquired: true, expiresAt });
+}
+
+async function heartbeatLock(request, env) {
+  if (!(await requireUploadAuth(request, env))) return json({ error: "unauthorized" }, 401);
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "invalid_json" }, 400);
+  }
+  const { token, leaseMs } = body || {};
+  if (!token || !leaseMs) return json({ error: "invalid_payload" }, 400);
+  const nowIso = new Date().toISOString();
+  const expiresAt = new Date(Date.now() + Number(leaseMs)).toISOString();
+  const result = await env.DB.prepare(`
+    UPDATE app_lock SET renewed_at = ?1, expires_at = ?2 WHERE id = 1 AND token = ?3
+  `).bind(nowIso, expiresAt, token).run();
+  if (!result.meta || result.meta.changes === 0) {
+    return json({ renewed: false }, 409);
+  }
+  return json({ renewed: true, expiresAt });
+}
+
+async function releaseLock(request, env) {
+  if (!(await requireUploadAuth(request, env))) return json({ error: "unauthorized" }, 401);
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    body = {};
+  }
+  const token = body && body.token;
+  if (token) {
+    await env.DB.prepare(`
+      UPDATE app_lock SET token = NULL, username = NULL, hostname = NULL, acquired_at = NULL, renewed_at = NULL, lease_ms = NULL, expires_at = NULL
+      WHERE id = 1 AND token = ?1
+    `).bind(token).run();
+  }
+  return json({ released: true });
+}
+
+async function lockStatus(request, env) {
+  if (!(await requireUploadAuth(request, env))) return json({ error: "unauthorized" }, 401);
+  const lock = await env.DB.prepare(
+    "SELECT token, username, hostname, expires_at FROM app_lock WHERE id = 1"
+  ).first();
+  const nowIso = new Date().toISOString();
+  const held = Boolean(lock && lock.token && lock.expires_at && lock.expires_at >= nowIso);
+  return json({
+    held,
+    username: held ? lock.username : null,
+    hostname: held ? lock.hostname : null,
+    expiresAt: held ? lock.expires_at : null,
+  });
 }
 
 function isValidPlan(plan) {

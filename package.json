@@ -1,6 +1,6 @@
 {
   "name": "casting-planner",
-  "version": "1.6.8",
+  "version": "1.6.11",
   "description": "Kenan Metal Döküm Planlayıcı",
   "main": "main.js",
   "scripts": {
@@ -35,7 +35,8 @@
       "icon.ico",
       "kenan-metal-logo.png",
       "report-logo.png",
-      "package.json"
+      "package.json",
+      "cloud-plan.config.json"
     ],
     "win": {
       "target": [

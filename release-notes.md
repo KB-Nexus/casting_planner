@@ -1,2 +1,2 @@
-- Müşteri portföyünde çapa özel analize artık açıklama ve boy da eklenebiliyor.
-- Sipariş listesinde çap değiştirildiğinde, o çapa özel tanımlı analiz, açıklama ve boy artık otomatik uygulanıyor.
+- Açılışta bazen görülen "internet bağlantısı yok" hatası, bilgisayar/ağ henüz tam hazır değilken birkaç kez otomatik tekrar denenerek düzeltildi.
+- Önemli düzeltme: eski bir bilgisayarın localStorage'ındaki bayat veriyi güncel bulut verisinin üzerine yazabilen bir hata giderildi — bulut artık her zaman tek doğru veri kaynağı olarak kabul ediliyor.

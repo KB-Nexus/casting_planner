@@ -6,21 +6,13 @@ const fsp = require('fs').promises;
 const os = require('os');
 const crypto = require('crypto');
 
-const NETWORK_DIR = '\\\\192.168.1.249\\Kalite10$\\PlanlamaData';
-const DATA_FILE = path.join(NETWORK_DIR, 'data.json');
-const TMP_FILE = path.join(NETWORK_DIR, 'data.tmp');
-const LOCK_FILE = path.join(NETWORK_DIR, 'planlama.lock');
-const BACKUP_DIR = path.join(NETWORK_DIR, 'backups');
-const MAX_BACKUPS = 30;
-
+// Yerel güvenlik ağı: bulut ulaşılamaz olduğunda elle kurtarma için son bilinen
+// iyi durumun pasif bir kopyası. Otomatik okunmaz, sadece yazılır.
 const LOCAL_BACKUP_DIR = 'C:\\apps\\casting-planner\\planner\\PlanlamaData2\\backups';
-const MAX_LOCAL_BACKUPS = 30;
+const LOCAL_SAFETY_NET_MAX_DAILY_FILES = 7;
 
 const LOCK_LEASE_MS = 90 * 1000;
 const LOCK_HEARTBEAT_MS = 20 * 1000;
-const LEGACY_LOCK_EXPIRY_MS = 7 * 60 * 1000;
-const INCOMPLETE_LOCK_GRACE_MS = 10 * 1000;
-const NETWORK_TIMEOUT_MS = 4000;
 const CLOUD_TIMEOUT_MS = 10000;
 const CLOUD_CONFIG_FILES = [
     path.join(app.getPath('userData'), 'cloud-plan.config.json'),
@@ -30,6 +22,7 @@ const CLOUD_CONFIG_FILES = [
 let mainWindow = null;
 let lockAcquired = false;
 let lockHeartbeatTimer = null;
+let lastKnownStateVersion = 0;
 const lockToken = crypto.randomUUID();
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
@@ -46,109 +39,54 @@ function withTimeout(promise, ms) {
     ]);
 }
 
-async function isNetworkAvailable() {
+// Bulut backend'ine (Cloudflare Worker) kimlik doğrulamalı istek atar.
+// Bağlantı hatalarını ve "yapılandırma yok" durumunu ayrı reason'larla döner,
+// böylece çağıranlar network_unavailable / not_configured'ı ayırt edebilir.
+async function cloudRequest(pathName, { method = 'GET', body } = {}) {
+    const config = readCloudConfig();
+    if (!config) return { ok: false, reason: 'not_configured' };
     try {
-        await withTimeout(fsp.access(NETWORK_DIR, fs.constants.F_OK), NETWORK_TIMEOUT_MS);
-        return true;
-    } catch {
-        return false;
+        const response = await withTimeout(fetch(`${config.url}${pathName}`, {
+            method,
+            headers: {
+                'Authorization': `Bearer ${config.uploadToken}`,
+                'Content-Type': 'application/json; charset=utf-8',
+            },
+            body: body !== undefined ? JSON.stringify(body) : undefined,
+        }), CLOUD_TIMEOUT_MS);
+        let data = null;
+        try { data = await response.json(); } catch { /* boş gövde olabilir */ }
+        return { ok: response.ok, status: response.status, data };
+    } catch (err) {
+        return { ok: false, reason: 'connection_error', message: err.message };
     }
 }
 
-async function readLockInfo() {
-    try {
-        const content = await withTimeout(fsp.readFile(LOCK_FILE, 'utf8'), NETWORK_TIMEOUT_MS);
-        return JSON.parse(content);
-    } catch {
-        return null;
-    }
-}
-
-async function writeLock() {
-    let created = false;
-    try {
-        const now = new Date().toISOString();
-        const info = {
-            version: 2,
-            token: lockToken,
-            username: getUsername(),
-            hostname: getHostname(),
-            time: now,
-            leaseMs: LOCK_LEASE_MS,
-        };
-        await withTimeout(fsp.writeFile(
-            LOCK_FILE,
-            JSON.stringify(info, null, 2),
-            { encoding: 'utf8', flag: 'wx' }
-        ), NETWORK_TIMEOUT_MS);
-        created = true;
+async function acquireRemoteLock() {
+    const result = await cloudRequest('/api/lock/acquire', {
+        method: 'POST',
+        body: { token: lockToken, username: getUsername(), hostname: getHostname(), leaseMs: LOCK_LEASE_MS },
+    });
+    if (result.reason) return result;
+    if (result.ok) {
         lockAcquired = true;
         startLockHeartbeat();
-        return true;
-    } catch (error) {
-        // Bazı SMB paylaşımlarında dosya oluşturulup içerik yazılamazsa boş kilit kalabilir.
-        // Yalnızca bu denemede oluşmuş sıfır baytlık dosyayı temizle.
-        if (!created && error && error.code !== 'EEXIST') {
-            try {
-                const stat = await fsp.stat(LOCK_FILE);
-                if (stat.size === 0) await fsp.unlink(LOCK_FILE);
-            } catch { /* temizlenecek dosya yok */ }
-        }
-        return false;
+        return { ok: true };
     }
-}
-
-async function releaseLock() {
-    if (!lockAcquired) return;
-    stopLockHeartbeat();
-    try {
-        const info = await readLockInfo();
-        if (info && info.token === lockToken) {
-            await withTimeout(fsp.unlink(LOCK_FILE), NETWORK_TIMEOUT_MS);
-        }
-    } catch { /* ignore */ }
-    lockAcquired = false;
-}
-
-function releaseLockSync() {
-    if (!lockAcquired) return;
-    stopLockHeartbeat();
-    try {
-        if (fs.existsSync(LOCK_FILE)) {
-            const content = fs.readFileSync(LOCK_FILE, 'utf8');
-            const info = JSON.parse(content);
-            if (info && info.token === lockToken) {
-                fs.unlinkSync(LOCK_FILE);
-            }
-        }
-    } catch { /* ignore */ }
-    lockAcquired = false;
+    return { ok: false, reason: 'locked', lock: result.data && result.data.lock };
 }
 
 async function checkAndAcquireLock() {
     if (lockAcquired) return { ok: true };
-    // lockAcquired oturum içinde (ör. geçici bir ağ kopması sırasında) düşmüş
-    // olabilir. Kilit dosyası hâlâ bize aitse veya tamamen kaybolmuşsa ve
-    // kimse başka bir kilit almamışsa, kaydetmeyi engellemek yerine sessizce
-    // yeniden kurmayı dene.
-    const existing = await readLockInfo();
-    if (existing && existing.token === lockToken) {
-        lockAcquired = true;
-        startLockHeartbeat();
-        return { ok: true };
-    }
-    if (!existing && await writeLock()) {
-        return { ok: true };
-    }
-    return { ok: false, reason: 'locked', info: existing };
+    return acquireRemoteLock();
 }
 
-function lockOwnerText(info) {
-    if (!info || typeof info !== 'object') return 'Kullanıcı bilgisi okunamadı.';
+function lockOwnerText(lock) {
+    if (!lock || typeof lock !== 'object') return 'Kullanıcı bilgisi okunamadı.';
     const lines = [];
-    if (info.username) lines.push(`Kullanıcı: ${info.username}`);
-    if (info.hostname) lines.push(`Bilgisayar: ${info.hostname}`);
-    if (info.time) lines.push(`Açılış zamanı: ${new Date(info.time).toLocaleString('tr-TR')}`);
+    if (lock.username) lines.push(`Kullanıcı: ${lock.username}`);
+    if (lock.hostname) lines.push(`Bilgisayar: ${lock.hostname}`);
+    if (lock.expiresAt) lines.push(`Kilit süresi: ${new Date(lock.expiresAt).toLocaleString('tr-TR')}`);
     return lines.length ? lines.join('\n') : 'Kullanıcı bilgisi okunamadı.';
 }
 
@@ -161,155 +99,106 @@ function startLockHeartbeat() {
     stopLockHeartbeat();
     lockHeartbeatTimer = setInterval(async () => {
         if (!lockAcquired) return;
-        try {
-            const content = await withTimeout(fsp.readFile(LOCK_FILE, 'utf8'), NETWORK_TIMEOUT_MS);
-            const info = JSON.parse(content);
-            if (!info || info.token !== lockToken) {
-                // Kilit dosyası gerçekten başka biri tarafından alınmış/değiştirilmiş.
-                lockAcquired = false;
-                stopLockHeartbeat();
-                return;
-            }
-            const now = new Date();
-            await withTimeout(fsp.utimes(LOCK_FILE, now, now), NETWORK_TIMEOUT_MS);
-        } catch (error) {
-            if (error && error.code === 'ENOENT') {
-                // Kilit dosyası gerçekten silinmiş — kilit gerçekten kaybedildi.
-                lockAcquired = false;
-                stopLockHeartbeat();
-            }
-            // Zaman aşımı veya geçici ağ kopması gibi diğer hatalarda kilidi
-            // koru; okuma başarısız oldu diye elimizdeki kilidi bırakmayalım.
-            // Bir sonraki heartbeat'te tekrar denenecek.
+        const result = await cloudRequest('/api/lock/heartbeat', {
+            method: 'POST',
+            body: { token: lockToken, leaseMs: LOCK_LEASE_MS },
+        });
+        if (result.reason) {
+            // Geçici bağlantı sorunu — kilidi koru, bir sonraki denemede tekrar dene.
+            return;
+        }
+        if (!result.ok) {
+            // Sunucu kilidi başka birine vermiş veya süresi dolmuş.
+            lockAcquired = false;
+            stopLockHeartbeat();
         }
     }, LOCK_HEARTBEAT_MS);
 }
 
+async function releaseLock() {
+    if (!lockAcquired) return;
+    stopLockHeartbeat();
+    await cloudRequest('/api/lock/release', { method: 'POST', body: { token: lockToken } }).catch(() => {});
+    lockAcquired = false;
+}
+
+// Kapanışta kilidi bırakmayı dener; en fazla 3sn bekler, sonra kendini iptal
+// eder. Senkron HTTP mümkün olmadığı için app.quit() bu tamamlanana (veya
+// zaman aşımına) kadar 'before-quit' üzerinden ertelenir — aksi halde process
+// istek tamamlanmadan sonlanır ve kilit 90sn kira süresi dolana kadar takılı
+// kalır.
+async function releaseLockBeforeQuit() {
+    if (!lockAcquired) return;
+    stopLockHeartbeat();
+    lockAcquired = false;
+    const config = readCloudConfig();
+    if (!config) return;
+    try {
+        await withTimeout(fetch(`${config.url}/api/lock/release`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${config.uploadToken}`,
+                'Content-Type': 'application/json; charset=utf-8',
+            },
+            body: JSON.stringify({ token: lockToken }),
+        }), 3000);
+    } catch { /* en iyi çaba; kira süresi dolunca kendiliğinden düzelir */ }
+}
+
 async function acquireApplicationLock() {
-    if (!await isNetworkAvailable()) {
+    // Bilgisayar yeni açılmışsa (ağ adaptörü/DNS henüz tam hazır değilse) veya
+    // geçici bir bağlantı kesintisi varsa tek denemede "internet yok" deyip
+    // uygulamayı kapatmak yerine birkaç kez tekrar dene.
+    let result;
+    for (let attempt = 0; attempt < 4; attempt++) {
+        result = await acquireRemoteLock();
+        if (result.reason !== 'connection_error') break;
+        if (attempt < 3) await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+    if (result.reason === 'not_configured') {
         dialog.showErrorBox(
-            'Ağ bağlantısı yok',
-            'Döküm Planlayıcı ortak ağ klasörüne ulaşamadığı için açılamıyor.\n\nAğ bağlantısını kontrol edip yeniden deneyin.'
+            'Bulut yapılandırması eksik',
+            'Döküm Planlayıcı bulut bağlantı ayarları bulunamadığı için açılamıyor.'
         );
         return false;
     }
-
-    let lockStat = null;
-    let existing = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
-        try { lockStat = await withTimeout(fsp.stat(LOCK_FILE), NETWORK_TIMEOUT_MS); } catch { lockStat = null; }
-        existing = lockStat ? await readLockInfo() : null;
-        if (!lockStat || existing) break;
-        const ageMs = Date.now() - lockStat.mtimeMs;
-        if (ageMs >= INCOMPLETE_LOCK_GRACE_MS) break;
-        await new Promise(resolve => setTimeout(resolve, 300));
+    if (result.reason === 'connection_error') {
+        dialog.showErrorBox(
+            'İnternet bağlantısı yok',
+            'Döküm Planlayıcı buluta ulaşamadığı için açılamıyor.\n\nİnternet bağlantınızı kontrol edip yeniden deneyin.'
+        );
+        return false;
     }
-
-    if (existing) {
-        const lockTime = lockStat && Number.isFinite(lockStat.mtimeMs)
-            ? lockStat.mtimeMs
-            : new Date(existing.time).getTime();
-        const expiryMs = existing.version === 2 && existing.token
-            ? LOCK_LEASE_MS
-            : LEGACY_LOCK_EXPIRY_MS;
-        const isStale = !Number.isFinite(lockTime) || Date.now() - lockTime >= expiryMs;
-        if (!isStale) {
-            dialog.showErrorBox(
-                'Döküm Planlayıcı kullanımda',
-                `Uygulama şu anda başka bir bilgisayarda açık.\n\n${lockOwnerText(existing)}`
-            );
-            return false;
-        }
-        try {
-            await withTimeout(fsp.unlink(LOCK_FILE), NETWORK_TIMEOUT_MS);
-            lockStat = null;
-            existing = null;
-        } catch (error) {
-            if (!error || error.code !== 'ENOENT') {
-                dialog.showErrorBox('Kilit temizlenemedi', String(error));
-                return false;
-            }
-        }
-    } else if (lockStat) {
-        const ageMs = Date.now() - lockStat.mtimeMs;
-        if (ageMs < INCOMPLETE_LOCK_GRACE_MS) {
-            dialog.showErrorBox(
-                'Döküm Planlayıcı başlatılıyor',
-                'Başka bir bilgisayar kilidi oluşturuyor olabilir. Birkaç saniye sonra yeniden deneyin.'
-            );
-            return false;
-        }
-        try {
-            await withTimeout(fsp.unlink(LOCK_FILE), NETWORK_TIMEOUT_MS);
-        } catch (error) {
-            if (!error || error.code !== 'ENOENT') {
-                dialog.showErrorBox('Bozuk kilit temizlenemedi', String(error));
-                return false;
-            }
-        }
-    }
-
-    if (!await writeLock()) {
-        const current = await readLockInfo();
+    if (!result.ok) {
         dialog.showErrorBox(
             'Döküm Planlayıcı kullanımda',
-            `Kilit oluşturulamadı. Uygulama başka bir bilgisayarda açılmış olabilir.\n\n${lockOwnerText(current)}`
+            `Uygulama şu anda başka bir bilgisayarda açık.\n\n${lockOwnerText(result.lock)}`
         );
         return false;
     }
     return true;
 }
 
-async function rotateBackups() {
+// Yerel güvenlik ağı: bulut uzun süre ulaşılamaz olursa elle kurtarma için
+// son bilinen iyi durumun pasif bir kopyası. IPC/UI'a açılmaz, hata olursa
+// ana akışı asla etkilemez.
+function writeLocalSafetyNet(data) {
     try {
-        await fsp.mkdir(BACKUP_DIR, { recursive: true });
-        const files = (await withTimeout(fsp.readdir(BACKUP_DIR), NETWORK_TIMEOUT_MS))
-            .filter(f => f.startsWith('data_') && f.endsWith('.json'))
-            .sort();
-        while (files.length >= MAX_BACKUPS) {
-            await withTimeout(fsp.unlink(path.join(BACKUP_DIR, files.shift())), NETWORK_TIMEOUT_MS);
-        }
-    } catch { /* ignore */ }
-}
-
-// Her kayıtta değil, en fazla belirli aralıkla yedek alınır — sık otomatik
-// kayıtları (her düzenlemede tetiklenir) yavaşlatmamak için.
-let lastBackupTime = 0;
-const BACKUP_MIN_INTERVAL_MS = 5 * 60 * 1000;
-
-async function createBackup(stamp) {
-    try {
-        // Dosyayı tek seferde oku, hem ağ hem yerel yedeğe aynı içeriği yaz —
-        // iki ayrı copyFile yerine tek okuma ile ağ trafiğini yarıya indirir.
-        const content = await withTimeout(fsp.readFile(DATA_FILE, 'utf8'), NETWORK_TIMEOUT_MS);
-
-        await rotateBackups();
-        const backupFile = path.join(BACKUP_DIR, `data_${stamp}.json`);
-        await withTimeout(fsp.writeFile(backupFile, content, 'utf8'), NETWORK_TIMEOUT_MS);
-
-        // Yerel güvenlik yedeği — sadece yazma, otomatik okunmaz
-        try {
-            await fsp.mkdir(LOCAL_BACKUP_DIR, { recursive: true });
-            const localFiles = (await fsp.readdir(LOCAL_BACKUP_DIR))
-                .filter(f => f.startsWith('data_') && f.endsWith('.json'))
+        fs.mkdirSync(LOCAL_BACKUP_DIR, { recursive: true });
+        const json = JSON.stringify(data, null, 2);
+        fs.writeFileSync(path.join(LOCAL_BACKUP_DIR, 'last-known-good.json'), json, 'utf8');
+        const dayStamp = new Date().toISOString().slice(0, 10);
+        const dailyFile = path.join(LOCAL_BACKUP_DIR, `last-known-good_${dayStamp}.json`);
+        if (!fs.existsSync(dailyFile)) {
+            fs.writeFileSync(dailyFile, json, 'utf8');
+            const dailyFiles = fs.readdirSync(LOCAL_BACKUP_DIR)
+                .filter(f => f.startsWith('last-known-good_') && f.endsWith('.json'))
                 .sort();
-            while (localFiles.length >= MAX_LOCAL_BACKUPS) {
-                await fsp.unlink(path.join(LOCAL_BACKUP_DIR, localFiles.shift()));
+            while (dailyFiles.length > LOCAL_SAFETY_NET_MAX_DAILY_FILES) {
+                fs.unlinkSync(path.join(LOCAL_BACKUP_DIR, dailyFiles.shift()));
             }
-            await fsp.writeFile(path.join(LOCAL_BACKUP_DIR, `data_${stamp}.json`), content, 'utf8');
-        } catch { /* yerel yedek hatası ana akışı etkilemez */ }
-    } catch { /* ignore */ }
-}
-
-async function atomicWrite(jsonString) {
-    await withTimeout(fsp.writeFile(TMP_FILE, jsonString, 'utf8'), NETWORK_TIMEOUT_MS);
-    await withTimeout(fsp.rename(TMP_FILE, DATA_FILE), NETWORK_TIMEOUT_MS);
-}
-
-function makeStamp() {
-    const d = new Date();
-    const pad = n => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+        }
+    } catch { /* pasif güvenlik ağı — ana akışı asla etkilemez */ }
 }
 
 function readCloudConfig() {
@@ -497,44 +386,68 @@ async function checkForStartupUpdate() {
     }
 }
 
-// IPC: load data from network
 ipcMain.handle('app-version', () => app.getVersion());
 
+// IPC: load data from cloud backend
 ipcMain.handle('network-load', async () => {
-    if (!await isNetworkAvailable()) return { ok: false, reason: 'network_unavailable' };
-    try {
-        const content = await withTimeout(fsp.readFile(DATA_FILE, 'utf8'), NETWORK_TIMEOUT_MS);
-        return { ok: true, data: JSON.parse(content) };
-    } catch (err) {
-        if (err.code === 'ENOENT') return { ok: true, data: null };
-        return { ok: false, reason: 'read_error', message: err.message };
+    let result = await cloudRequest('/api/state', { method: 'GET' });
+    if (result.reason === 'connection_error') {
+        // Geçici bir bağlantı sorunu olabilir (ör. uyanma sonrası) — bir kez daha dene.
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        result = await cloudRequest('/api/state', { method: 'GET' });
     }
+    if (result.reason === 'not_configured') return { ok: false, reason: 'not_configured' };
+    if (result.reason === 'connection_error') return { ok: false, reason: 'network_unavailable' };
+    if (!result.ok) return { ok: false, reason: 'read_error', message: result.data && result.data.error };
+    lastKnownStateVersion = (result.data && result.data.version) || 0;
+    const data = result.data ? result.data.payload : null;
+    if (data) writeLocalSafetyNet(data);
+    return { ok: true, data };
 });
 
-// IPC: save data to network
+// IPC: save data to cloud backend
 ipcMain.handle('network-save', async (event, data) => {
-    if (!await isNetworkAvailable()) return { ok: false, reason: 'network_unavailable' };
     const lockResult = await checkAndAcquireLock();
     if (!lockResult.ok) return lockResult;
-    try {
-        const now = Date.now();
-        if (now - lastBackupTime >= BACKUP_MIN_INTERVAL_MS) {
-            lastBackupTime = now;
-            // Önce mevcut dosya var mı kontrol et (yedek için)
-            try { await fsp.access(DATA_FILE); await createBackup(makeStamp()); } catch { /* ilk kayıt */ }
+    const result = await cloudRequest('/api/state', {
+        method: 'POST',
+        body: {
+            payload: data,
+            expectedVersion: lastKnownStateVersion,
+            username: getUsername(),
+            hostname: getHostname(),
+            token: lockToken,
+        },
+    });
+    if (result.reason === 'not_configured') return { ok: false, reason: 'not_configured' };
+    if (result.reason === 'connection_error') return { ok: false, reason: 'network_unavailable' };
+    if (!result.ok) {
+        if (result.status === 423) {
+            const lock = result.data && result.data.lock;
+            const info = lock ? { username: lock.username, hostname: lock.hostname, time: lock.expiresAt } : null;
+            return { ok: false, reason: 'locked', info };
         }
-        await atomicWrite(JSON.stringify(data));
-        return { ok: true };
-    } catch (err) {
-        return { ok: false, reason: 'write_error', message: err.message };
+        if (result.status === 409) {
+            // Başka bir istemci araya yazmış — güncel sürümü çekip tekrar denemesi
+            // için renderer'a bildir (yerel veriyi renderer'ın kendi mantığıyla
+            // birleştirmesi/üzerine yazması gerekir).
+            lastKnownStateVersion = (result.data && result.data.currentVersion) || lastKnownStateVersion;
+            return { ok: false, reason: 'version_conflict', currentVersion: lastKnownStateVersion };
+        }
+        return { ok: false, reason: 'write_error', message: result.data && result.data.error };
     }
+    lastKnownStateVersion = result.data.version;
+    writeLocalSafetyNet(data);
+    return { ok: true };
 });
 
-// IPC: get network status
+// IPC: get lock/connection status
 ipcMain.handle('network-status', async () => {
-    const available = await isNetworkAvailable();
-    if (!available) return { available: false };
-    const lock = await readLockInfo();
+    const result = await cloudRequest('/api/lock/status', { method: 'GET' });
+    if (result.reason) return { available: false };
+    const lock = result.data && result.data.held
+        ? { username: result.data.username, hostname: result.data.hostname, time: result.data.expiresAt }
+        : null;
     return { available: true, lock, myUsername: getUsername(), myHostname: getHostname() };
 });
 
@@ -546,31 +459,23 @@ ipcMain.handle('network-release-lock', async () => {
 
 // IPC: list backups
 ipcMain.handle('network-list-backups', async () => {
-    if (!await isNetworkAvailable()) return { ok: false, reason: 'network_unavailable' };
-    try {
-        await fsp.mkdir(BACKUP_DIR, { recursive: true });
-        const files = (await withTimeout(fsp.readdir(BACKUP_DIR), NETWORK_TIMEOUT_MS))
-            .filter(f => f.startsWith('data_') && f.endsWith('.json'))
-            .sort()
-            .reverse();
-        return { ok: true, backups: files };
-    } catch (err) {
-        return { ok: false, reason: 'read_error', message: err.message };
-    }
+    const result = await cloudRequest('/api/state/backups', { method: 'GET' });
+    if (result.reason === 'not_configured') return { ok: false, reason: 'not_configured' };
+    if (result.reason === 'connection_error') return { ok: false, reason: 'network_unavailable' };
+    if (!result.ok) return { ok: false, reason: 'read_error', message: result.data && result.data.error };
+    const backups = (result.data.backups || []).map(b => b.stamp);
+    return { ok: true, backups };
 });
 
 // IPC: load specific backup
 ipcMain.handle('network-load-backup', async (event, filename) => {
-    if (!await isNetworkAvailable()) return { ok: false, reason: 'network_unavailable' };
-    try {
-        const safeName = path.basename(filename);
-        const filePath = path.join(BACKUP_DIR, safeName);
-        const content = await withTimeout(fsp.readFile(filePath, 'utf8'), NETWORK_TIMEOUT_MS);
-        return { ok: true, data: JSON.parse(content) };
-    } catch (err) {
-        if (err.code === 'ENOENT') return { ok: false, reason: 'not_found' };
-        return { ok: false, reason: 'read_error', message: err.message };
-    }
+    const stamp = path.basename(filename);
+    const result = await cloudRequest(`/api/state/backups/${encodeURIComponent(stamp)}`, { method: 'GET' });
+    if (result.reason === 'not_configured') return { ok: false, reason: 'not_configured' };
+    if (result.reason === 'connection_error') return { ok: false, reason: 'network_unavailable' };
+    if (result.status === 404) return { ok: false, reason: 'not_found' };
+    if (!result.ok) return { ok: false, reason: 'read_error', message: result.data && result.data.error };
+    return { ok: true, data: result.data.payload };
 });
 
 // IPC: salt-okunur mobil planı Cloudflare'a gönder
@@ -718,8 +623,13 @@ app.on('second-instance', () => {
     mainWindow.focus();
 });
 
-app.on('before-quit', () => { releaseLockSync(); });
+let releasingLockBeforeQuit = false;
+app.on('before-quit', (event) => {
+    if (releasingLockBeforeQuit || !lockAcquired) return;
+    event.preventDefault();
+    releasingLockBeforeQuit = true;
+    releaseLockBeforeQuit().finally(() => app.quit());
+});
 app.on('window-all-closed', () => {
-    releaseLockSync();
     if (process.platform !== 'darwin') app.quit();
 });
