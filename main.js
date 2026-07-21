@@ -503,18 +503,19 @@ ipcMain.handle('auth-login', async (event, username, password) => {
 });
 
 ipcMain.handle('auth-logout', async () => {
-    const config = readCloudConfig();
-    if (config && currentSession) {
-        try {
-            await withTimeout(fetch(`${config.url}/api/users/logout`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json; charset=utf-8' },
-                body: JSON.stringify({ sessionToken: currentSession.token }),
-            }), CLOUD_TIMEOUT_MS);
-        } catch { /* en iyi çaba */ }
-    }
+    const outgoingSession = currentSession;
+    // Yerel oturumu hemen temizle; sunucudaki oturum kaydını arka planda,
+    // renderer'ı bekletmeden sil (yavaş/ölü ağda çıkış anında olsun).
     currentSession = null;
     saveStoredSession(null);
+    const config = readCloudConfig();
+    if (config && outgoingSession) {
+        fetch(`${config.url}/api/users/logout`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json; charset=utf-8' },
+            body: JSON.stringify({ sessionToken: outgoingSession.token }),
+        }).catch(() => { /* en iyi çaba */ });
+    }
     return { ok: true };
 });
 

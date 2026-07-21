@@ -12514,7 +12514,7 @@
             const roleLabel = role => role === "admin" ? "Yönetici" : role === "editor" ? "Editör" : "Görüntüleyici";
             const rows = users.map(u => {
                 const createdAt = u.created_at ? new Date(u.created_at).toLocaleString("tr-TR") : "";
-                return `<tr><td>${escapeHtml(u.username)}</td><td>${escapeHtml(roleLabel(u.role))}</td><td>${escapeHtml(createdAt)}</td><td><button onclick="window.opener.deleteManagedUser('${escapeHtml(u.username).replace(/'/g, "\\'")}')">Sil</button></td></tr>`;
+                return `<tr><td>${escapeHtml(u.username)}</td><td>${escapeHtml(roleLabel(u.role))}</td><td>${escapeHtml(createdAt)}</td><td><button onclick="removeUser(${JSON.stringify(u.username)})">Sil</button></td></tr>`;
             }).join("") || `<tr><td colspan="4" class="empty-row">Kullanıcı yok</td></tr>`;
             return `
                 <!doctype html>
@@ -12536,10 +12536,25 @@
                         tr:nth-child(even) td { background: #f8fafc; }
                         .empty-row { color: #94a3b8; font-weight: 700; text-align: center; }
                     </style>
+                    <scr` + `ipt>
+                        function addUser() {
+                            const username = prompt("Yeni kullanıcı adı:");
+                            if (!username) return;
+                            const password = prompt("Şifre (en az 6 karakter):");
+                            if (!password || password.length < 6) { alert("Şifre en az 6 karakter olmalı."); return; }
+                            const role = prompt("Rol (admin / editor / viewer):", "viewer");
+                            if (!["admin", "editor", "viewer"].includes(role)) { alert("Rol admin, editor veya viewer olmalı."); return; }
+                            if (window.opener) window.opener.createManagedUser(username.trim(), password, role);
+                        }
+                        function removeUser(username) {
+                            if (!confirm('"' + username + '" kullanıcısı silinsin mi?')) return;
+                            if (window.opener) window.opener.deleteManagedUser(username);
+                        }
+                    </scr` + `ipt>
                 </head>
                 <body>
                     <main class="sheet">
-                        <div class="hero"><h1>Kullanıcılar</h1><button onclick="window.opener.openCreateUserPrompt()">+ Kullanıcı Ekle</button></div>
+                        <div class="hero"><h1>Kullanıcılar</h1><button onclick="addUser()">+ Kullanıcı Ekle</button></div>
                         <table><thead><tr><th>Kullanıcı adı</th><th>Rol</th><th>Oluşturulma</th><th></th></tr></thead><tbody>${rows}</tbody></table>
                     </main>
                 </body>
@@ -12578,20 +12593,8 @@
             userManagementWindow.focus();
         }
 
-        async function openCreateUserPrompt() {
-            const username = prompt("Yeni kullanıcı adı:");
-            if (!username) return;
-            const password = prompt("Şifre (en az 6 karakter):");
-            if (!password || password.length < 6) {
-                showAlert("Şifre en az 6 karakter olmalı.", "error");
-                return;
-            }
-            const role = prompt("Rol (admin / editor / viewer):", "viewer");
-            if (!["admin", "editor", "viewer"].includes(role)) {
-                showAlert("Rol admin, editor veya viewer olmalı.", "error");
-                return;
-            }
-            const result = await window.authStore.createUser(username.trim(), password, role);
+        async function createManagedUser(username, password, role) {
+            const result = await window.authStore.createUser(username, password, role);
             if (!result || !result.ok) {
                 showAlert(result && result.reason === "username_taken" ? "Bu kullanıcı adı zaten var." : "Kullanıcı oluşturulamadı.", "error");
                 return;
@@ -12601,7 +12604,6 @@
         }
 
         async function deleteManagedUser(username) {
-            if (!await showConfirm(`"${username}" kullanıcısı silinsin mi?`)) return;
             const result = await window.authStore.deleteUser(username);
             if (!result || !result.ok) {
                 showAlert(result && result.reason === "cannot_delete_self" ? "Kendi hesabınızı silemezsiniz." : "Kullanıcı silinemedi.", "error");

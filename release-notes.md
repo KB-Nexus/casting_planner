@@ -1,3 +1,2 @@
-- Üyelikli giriş eklendi: uygulama artık kullanıcı adı/şifre ile açılıyor. Roller: Yönetici, Editör, Görüntüleyici — görüntüleyiciler veri kaydedemez.
-- Yöneticiler için "Kullanıcılar" ekranı: yeni kullanıcı ekleme/silme.
-- Yeni "Aktivite Geçmişi" ekranı: kritik silme işlemlerinin kim/ne zaman kaydı buradan izlenebiliyor.
+- Kullanıcılar ekranındaki "Sil" onayı ve "Kullanıcı Ekle" iletişim kutuları artık arka planda kalmıyor, doğrudan pencerede görünüyor.
+- Çıkış yapma işlemi artık anlık; ağ isteği beklenmeden oturum kapanıyor.
