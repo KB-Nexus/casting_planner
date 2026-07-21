@@ -1,1 +1,3 @@
-- Kullanıcılar ekranında silme/ekleme işlemi aslında çalışıyordu ama sonuç bildirimi ana pencerede (popup'ın arkasında) gösterildiği için fark edilmiyordu. Artık işlem sonrası pencere kendini yeniliyor, öne geliyor ve sonucu kendi içinde bir bantla gösteriyor.
+- Kullanıcılar ekranındaki "Sil" butonu düzeltildi: bozuk HTML nedeniyle tıklamalar hiçbir işe yaramıyordu.
+- Plan tablosundan bir slot/kayıt silindiğinde (müşteri veya KM slotu) artık Aktivite Geçmişi'ne kaydediliyor.
+- Aktivite Geçmişi tablosunda bilgisayar adı yerine yalnızca kullanıcı adı gösteriliyor.

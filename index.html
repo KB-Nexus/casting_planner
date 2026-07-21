@@ -8270,6 +8270,8 @@
                 return;
             }
 
+            logAuditEvent("delete:planSlot", `Slot ${order.assignedSlot || ""}: ${order.customer || ""} ${order.diameter || ""}mm`);
+
             if (order.isManualPlanRow || order.isUserTyped) {
                 pendingOrders = pendingOrders.filter(item => item.id !== orderId);
             } else {
@@ -8882,6 +8884,8 @@
             if (!casting || casting.type !== "own") {
                 return;
             }
+
+            logAuditEvent("delete:planSlot", `Slot ${slotNumber}: KM ${casting.diameter || ""}mm`);
 
             setPlanRowData(slotNumber, {
                 sourceSlot: slotNumber,
@@ -12481,8 +12485,8 @@
         function createAuditLogHtml(events) {
             const rows = events.map(evt => {
                 const ts = evt.ts ? new Date(evt.ts).toLocaleString("tr-TR") : "";
-                return `<tr><td>${escapeHtml(ts)}</td><td>${escapeHtml(evt.username || "")}</td><td>${escapeHtml(evt.hostname || "")}</td><td>${escapeHtml(evt.action || "")}</td><td>${escapeHtml(evt.detail || "")}</td></tr>`;
-            }).join("") || `<tr><td colspan="5" class="empty-row">Kayıt yok</td></tr>`;
+                return `<tr><td>${escapeHtml(ts)}</td><td>${escapeHtml(evt.username || "")}</td><td>${escapeHtml(evt.action || "")}</td><td>${escapeHtml(evt.detail || "")}</td></tr>`;
+            }).join("") || `<tr><td colspan="4" class="empty-row">Kayıt yok</td></tr>`;
             return `
                 <!doctype html>
                 <html lang="tr">
@@ -12505,7 +12509,7 @@
                 <body>
                     <main class="sheet">
                         <div class="hero"><h1>Aktivite Geçmişi (son ${events.length} kayıt)</h1></div>
-                        <table><thead><tr><th>Zaman</th><th>Kullanıcı</th><th>Bilgisayar</th><th>İşlem</th><th>Detay</th></tr></thead><tbody>${rows}</tbody></table>
+                        <table><thead><tr><th>Zaman</th><th>Kullanıcı</th><th>İşlem</th><th>Detay</th></tr></thead><tbody>${rows}</tbody></table>
                     </main>
                 </body>
                 </html>
@@ -12537,7 +12541,7 @@
             const roleLabel = role => role === "admin" ? "Yönetici" : role === "editor" ? "Editör" : "Görüntüleyici";
             const rows = users.map(u => {
                 const createdAt = u.created_at ? new Date(u.created_at).toLocaleString("tr-TR") : "";
-                return `<tr><td>${escapeHtml(u.username)}</td><td>${escapeHtml(roleLabel(u.role))}</td><td>${escapeHtml(createdAt)}</td><td><button onclick="removeUser(${JSON.stringify(u.username)})">Sil</button></td></tr>`;
+                return `<tr><td>${escapeHtml(u.username)}</td><td>${escapeHtml(roleLabel(u.role))}</td><td>${escapeHtml(createdAt)}</td><td><button onclick='removeUser(${JSON.stringify(u.username)})'>Sil</button></td></tr>`;
             }).join("") || `<tr><td colspan="4" class="empty-row">Kullanıcı yok</td></tr>`;
             const bannerHtml = message
                 ? `<div class="status-banner ${message.type === "error" ? "is-error" : "is-success"}">${escapeHtml(message.text)}</div>`
