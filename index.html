@@ -6162,6 +6162,25 @@
                 ...kmAnalysisByDiameter,
                 defaultQualityByDiameter: kmDefaultQualityByDiameter
             }));
+
+            // Listede ekli, kullanıcı tarafından elle özelleştirilmemiş KM
+            // siparişlerinin analiz/kalite metnini yeni varsayılan değerlerle güncelle.
+            pendingOrders.forEach(order => {
+                if (!isKmOrder(order) || order.analysisId) {
+                    return;
+                }
+                const diameter = order.diameter;
+                if (!order.kmAnalysisCustomized) {
+                    const newAnalysis = getKmAnalysis(diameter);
+                    order.customAnalysis = newAnalysis;
+                    order.analysis = newAnalysis;
+                }
+                if (!order.kmQualityCustomized) {
+                    order.quality = getKmDefaultQuality(diameter);
+                }
+            });
+            savePendingOrders();
+
             recordUndoCheckpoint();
             generatePlan();
             updateOrderBoard();
@@ -7923,6 +7942,7 @@
             order.analysisId = "";
             order.customAnalysis = analysis;
             order.analysis = analysis;
+            if (isKmOrder(order)) order.kmAnalysisCustomized = true;
             savePendingOrders();
             refreshOrderAssignmentViews();
             showAlert("Sipariş analizi güncellendi.", "success");
@@ -8376,10 +8396,15 @@
                 order.analysisId = "";
                 order.customAnalysis = analysis;
                 order.analysis = analysis;
+                if (isKmOrder(order)) order.kmAnalysisCustomized = true;
             } else if (field === "note") {
                 order.note = String(value || "").trim();
             } else {
                 return;
+            }
+
+            if (field === "quality" && isKmOrder(order)) {
+                order.kmQualityCustomized = true;
             }
 
             if (isKmOrder(order)) {
@@ -8396,6 +8421,8 @@
                     order.analysisId = "";
                     order.customAnalysis = getKmAnalysis(order.diameter);
                     order.analysis = order.customAnalysis;
+                    order.kmAnalysisCustomized = false;
+                    order.kmQualityCustomized = false;
                 }
             } else if (field === "customer") {
                 if (!applyLastCustomerCastingDefaults(order)) {

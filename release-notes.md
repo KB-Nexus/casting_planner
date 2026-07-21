@@ -1,2 +1,1 @@
-- Açılışta bazen görülen "internet bağlantısı yok" hatası, bilgisayar/ağ henüz tam hazır değilken birkaç kez otomatik tekrar denenerek düzeltildi.
-- Önemli düzeltme: eski bir bilgisayarın localStorage'ındaki bayat veriyi güncel bulut verisinin üzerine yazabilen bir hata giderildi — bulut artık her zaman tek doğru veri kaynağı olarak kabul ediliyor.
+- Müşteriler > KM Analizleri sekmesinde bir çapın analiz/kalite metni değiştirilip kaydedildiğinde, plan tablosunda o çapa bağlı ve elle özelleştirilmemiş KM satırları artık otomatik olarak yeni değerle güncelleniyor.
