@@ -12533,12 +12533,15 @@
             reportWindow.focus();
         }
 
-        function createUserManagementHtml(users) {
+        function createUserManagementHtml(users, message) {
             const roleLabel = role => role === "admin" ? "Yönetici" : role === "editor" ? "Editör" : "Görüntüleyici";
             const rows = users.map(u => {
                 const createdAt = u.created_at ? new Date(u.created_at).toLocaleString("tr-TR") : "";
                 return `<tr><td>${escapeHtml(u.username)}</td><td>${escapeHtml(roleLabel(u.role))}</td><td>${escapeHtml(createdAt)}</td><td><button onclick="removeUser(${JSON.stringify(u.username)})">Sil</button></td></tr>`;
             }).join("") || `<tr><td colspan="4" class="empty-row">Kullanıcı yok</td></tr>`;
+            const bannerHtml = message
+                ? `<div class="status-banner ${message.type === "error" ? "is-error" : "is-success"}">${escapeHtml(message.text)}</div>`
+                : "";
             return `
                 <!doctype html>
                 <html lang="tr">
@@ -12558,6 +12561,9 @@
                         td button { background: #fee2e2; border: none; border-radius: 6px; color: #b91c1c; cursor: pointer; font-size: 11px; font-weight: 700; padding: 4px 10px; }
                         tr:nth-child(even) td { background: #f8fafc; }
                         .empty-row { color: #94a3b8; font-weight: 700; text-align: center; }
+                        .status-banner { border-radius: 8px; font-size: 13px; font-weight: 700; margin-bottom: 12px; padding: 10px 14px; }
+                        .status-banner.is-success { background: #dcfce7; color: #166534; }
+                        .status-banner.is-error { background: #fee2e2; color: #b91c1c; }
                         .modal-overlay { align-items: center; background: rgba(0,0,0,0.35); bottom: 0; display: none; justify-content: center; left: 0; position: fixed; right: 0; top: 0; z-index: 999; }
                         .modal-overlay.visible { display: flex; }
                         .modal-box { background: #fff; border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.18); padding: 22px 26px; width: min(90vw, 320px); }
@@ -12644,6 +12650,7 @@
                             </div>
                         </div>
                     </div>
+                    ${bannerHtml}
                     <main class="sheet">
                         <div class="hero"><h1>Kullanıcılar</h1><button onclick="openAddUserModal()">+ Kullanıcı Ekle</button></div>
                         <table><thead><tr><th>Kullanıcı adı</th><th>Rol</th><th>Oluşturulma</th><th></th></tr></thead><tbody>${rows}</tbody></table>
@@ -12655,13 +12662,14 @@
 
         let userManagementWindow = null;
 
-        async function refreshUserManagementWindow() {
+        async function refreshUserManagementWindow(message) {
             if (!userManagementWindow || userManagementWindow.closed) return;
             const result = await window.authStore.listUsers();
             if (!result || !result.ok) return;
             userManagementWindow.document.open();
-            userManagementWindow.document.write(createUserManagementHtml((result.data && result.data.users) || []));
+            userManagementWindow.document.write(createUserManagementHtml((result.data && result.data.users) || [], message));
             userManagementWindow.document.close();
+            userManagementWindow.focus();
         }
 
         async function openUserManagementPage() {
@@ -12687,21 +12695,25 @@
         async function createManagedUser(username, password, role) {
             const result = await window.authStore.createUser(username, password, role);
             if (!result || !result.ok) {
-                showAlert(result && result.reason === "username_taken" ? "Bu kullanıcı adı zaten var." : "Kullanıcı oluşturulamadı.", "error");
+                const msg = result && result.reason === "username_taken" ? "Bu kullanıcı adı zaten var." : "Kullanıcı oluşturulamadı.";
+                showAlert(msg, "error");
+                refreshUserManagementWindow({ text: msg, type: "error" });
                 return;
             }
             showAlert("Kullanıcı oluşturuldu.", "success");
-            refreshUserManagementWindow();
+            refreshUserManagementWindow({ text: "Kullanıcı oluşturuldu.", type: "success" });
         }
 
         async function deleteManagedUser(username) {
             const result = await window.authStore.deleteUser(username);
             if (!result || !result.ok) {
-                showAlert(result && result.reason === "cannot_delete_self" ? "Kendi hesabınızı silemezsiniz." : "Kullanıcı silinemedi.", "error");
+                const msg = result && result.reason === "cannot_delete_self" ? "Kendi hesabınızı silemezsiniz." : "Kullanıcı silinemedi.";
+                showAlert(msg, "error");
+                refreshUserManagementWindow({ text: msg, type: "error" });
                 return;
             }
             showAlert("Kullanıcı silindi.", "success");
-            refreshUserManagementWindow();
+            refreshUserManagementWindow({ text: "Kullanıcı silindi.", type: "success" });
         }
 
         function createReportHtml() {

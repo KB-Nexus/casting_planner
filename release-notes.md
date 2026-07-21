@@ -1,1 +1,1 @@
-- Görüntüleyici rolündeki kullanıcılar için çıkış onayı (Evet/Hayır) çalışmıyordu; genel onay penceresinin butonları görüntüleyici kısıtlamasından muaf tutuldu.
+- Kullanıcılar ekranında silme/ekleme işlemi aslında çalışıyordu ama sonuç bildirimi ana pencerede (popup'ın arkasında) gösterildiği için fark edilmiyordu. Artık işlem sonrası pencere kendini yeniliyor, öne geliyor ve sonucu kendi içinde bir bantla gösteriyor.
