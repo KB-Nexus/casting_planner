@@ -1,1 +1,1 @@
-- Giriş ekranına "Beni hatırla" seçeneği eklendi: işaretlenirse uygulama tekrar açıldığında otomatik giriş yapılır, işaretlenmezse her açılışta tekrar kullanıcı adı/şifre istenir.
+- Görüntüleyici rolündeki kullanıcılar için çıkış onayı (Evet/Hayır) çalışmıyordu; genel onay penceresinin butonları görüntüleyici kısıtlamasından muaf tutuldu.
