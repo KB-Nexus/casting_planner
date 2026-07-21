@@ -3589,7 +3589,7 @@
         }
         /* Görüntüleyici rolü: varsayılan olarak HER ŞEY salt-okunur; sadece
            aşağıdaki beyaz listedeki öğeler kullanılabilir kalır. */
-        body.viewer-mode input:not(#loginUsername):not(#loginPassword),
+        body.viewer-mode input:not(#loginUsername):not(#loginPassword):not(#loginRemember),
         body.viewer-mode select,
         body.viewer-mode textarea,
         body.viewer-mode button {
@@ -4733,7 +4733,11 @@
             <label style="display:block;font-size:12px;font-weight:700;margin-bottom:5px;">Kullanıcı adı</label>
             <input id="loginUsername" type="text" required autofocus style="width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:10px 12px;font:inherit;margin-bottom:14px;box-sizing:border-box;">
             <label style="display:block;font-size:12px;font-weight:700;margin-bottom:5px;">Şifre</label>
-            <input id="loginPassword" type="password" required style="width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:10px 12px;font:inherit;margin-bottom:18px;box-sizing:border-box;">
+            <input id="loginPassword" type="password" required style="width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:10px 12px;font:inherit;margin-bottom:14px;box-sizing:border-box;">
+            <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:#334155;margin-bottom:18px;cursor:pointer;">
+                <input id="loginRemember" type="checkbox" style="width:16px;height:16px;margin:0;">
+                Beni hatırla
+            </label>
             <button id="loginSubmitBtn" type="submit" style="width:100%;border:none;border-radius:8px;background:#0f766e;color:#fff;font-weight:800;padding:11px;font-size:14px;cursor:pointer;">Giriş Yap</button>
         </form>
     </div>
@@ -13344,13 +13348,14 @@
             event.preventDefault();
             const username = document.getElementById("loginUsername").value.trim();
             const password = document.getElementById("loginPassword").value;
+            const remember = document.getElementById("loginRemember").checked;
             const errorBox = document.getElementById("loginError");
             const submitBtn = document.getElementById("loginSubmitBtn");
             errorBox.style.display = "none";
             submitBtn.disabled = true;
             submitBtn.textContent = "Giriş yapılıyor…";
             try {
-                const result = await window.authStore.login(username, password);
+                const result = await window.authStore.login(username, password, remember);
                 if (!result || !result.ok) {
                     const messages = {
                         invalid_credentials: "Kullanıcı adı veya şifre hatalı.",

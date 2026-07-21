@@ -18,7 +18,7 @@ contextBridge.exposeInMainWorld('networkStore', {
 
 contextBridge.exposeInMainWorld('authStore', {
     getSession: () => ipcRenderer.invoke('auth-get-session'),
-    login: (username, password) => ipcRenderer.invoke('auth-login', username, password),
+    login: (username, password, remember) => ipcRenderer.invoke('auth-login', username, password, remember),
     logout: () => ipcRenderer.invoke('auth-logout'),
     listUsers: () => ipcRenderer.invoke('auth-list-users'),
     createUser: (username, password, role) => ipcRenderer.invoke('auth-create-user', { username, password, role }),

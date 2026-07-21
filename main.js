@@ -483,7 +483,7 @@ ipcMain.handle('network-status', async () => {
 ipcMain.handle('auth-get-session', () => currentSession);
 
 // IPC: kullanıcı adı/şifre ile buluta giriş yapar, oturumu diske kaydeder
-ipcMain.handle('auth-login', async (event, username, password) => {
+ipcMain.handle('auth-login', async (event, username, password, remember) => {
     const config = readCloudConfig();
     if (!config) return { ok: false, reason: 'not_configured' };
     try {
@@ -495,7 +495,10 @@ ipcMain.handle('auth-login', async (event, username, password) => {
         const data = await response.json().catch(() => null);
         if (!response.ok) return { ok: false, reason: (data && data.error) || 'login_failed' };
         currentSession = { token: data.token, username: data.username, role: data.role, expiresAt: data.expiresAt };
-        saveStoredSession(currentSession);
+        // "Beni hatırla" işaretli değilse oturumu diske yazma; uygulama kapanıp
+        // açıldığında currentSession sıfırdan yüklendiği için tekrar giriş istenir.
+        if (remember) saveStoredSession(currentSession);
+        else saveStoredSession(null);
         return { ok: true, username: currentSession.username, role: currentSession.role };
     } catch (err) {
         return { ok: false, reason: 'connection_error', message: err.message };
