@@ -3587,13 +3587,32 @@
             padding: 4px 9px;
             white-space: nowrap;
         }
+        /* Görüntüleyici rolü: varsayılan olarak HER ŞEY salt-okunur; sadece
+           aşağıdaki beyaz listedeki öğeler kullanılabilir kalır. */
         body.viewer-mode input:not(#loginUsername):not(#loginPassword),
         body.viewer-mode select,
         body.viewer-mode textarea,
-        body.viewer-mode .viewer-blocked {
+        body.viewer-mode button {
             pointer-events: none !important;
             opacity: 0.55 !important;
             filter: grayscale(35%);
+        }
+        body.viewer-mode .viewer-allowed,
+        body.viewer-mode .customer-tab,
+        body.viewer-mode .customer-drawer-close,
+        body.viewer-mode #stockPreviewSlot,
+        body.viewer-mode #stockSimSlot,
+        body.viewer-mode .stock-sim-counter button,
+        body.viewer-mode #forecastUntil,
+        body.viewer-mode #stockNeedUntil,
+        body.viewer-mode #castingForecast .date-step-btn,
+        body.viewer-mode #stockNeedDashboard .date-step-btn {
+            pointer-events: auto !important;
+            opacity: 1 !important;
+            filter: none !important;
+        }
+        body.viewer-mode .viewer-hidden {
+            display: none !important;
         }
         #currentUserBadge {
             background: #0f172a;
@@ -4960,25 +4979,25 @@
 
                 <div id="manualPagePanel" class="planner-page-panel">
                 <div class="export-actions">
-                    <button type="button" onclick="createPlanOnlyReport()">🧾 Plan Çıktısı</button>
-                    <button type="button" onclick="copyPlanShareText()">📋 Planı Kopyala</button>
-                    <button type="button" onclick="createPdfReport()">📄 PDF Oluştur</button>
-                    <button type="button" onclick="exportExcel()">📊 Excel Aktar</button>
-                    <button type="button" onclick="openCustomerDrawer()" class="open-customer-drawer-btn" style="margin-left:auto;">📋 Müşteriler</button>
+                    <button type="button" class="viewer-allowed" onclick="createPlanOnlyReport()">🧾 Plan Çıktısı</button>
+                    <button type="button" class="viewer-allowed" onclick="copyPlanShareText()">📋 Planı Kopyala</button>
+                    <button type="button" class="viewer-allowed" onclick="createPdfReport()">📄 PDF Oluştur</button>
+                    <button type="button" class="viewer-allowed" onclick="exportExcel()">📊 Excel Aktar</button>
+                    <button type="button" onclick="openCustomerDrawer()" class="open-customer-drawer-btn viewer-allowed" style="margin-left:auto;">📋 Müşteriler</button>
                 </div>
 
                 <div class="plan-table-toolbar">
-                    <button type="button" onclick="openCompletedCastingsPage()">✓ Geçmiş Dökümler</button>
-                    <button type="button" onclick="openProductionReportPage()">📈 Üretim Raporu</button>
-                    <button type="button" onclick="openAuditLogPage()">🕵️ Aktivite Geçmişi</button>
+                    <button type="button" class="viewer-allowed" onclick="openCompletedCastingsPage()">✓ Geçmiş Dökümler</button>
+                    <button type="button" class="viewer-allowed" onclick="openProductionReportPage()">📈 Üretim Raporu</button>
+                    <button type="button" id="auditLogBtn" onclick="openAuditLogPage()" style="display:none;">🕵️ Aktivite Geçmişi</button>
                     <button type="button" id="manageUsersBtn" onclick="openUserManagementPage()" style="display:none;">👥 Kullanıcılar</button>
-                    <button type="button" onclick="saveCurrentPlanList()">Listeyi Kaydet</button>
-                    <button type="button" onclick="loadSavedPlanList()">Listeyi Yükle</button>
+                    <button type="button" class="viewer-hidden" onclick="saveCurrentPlanList()">Listeyi Kaydet</button>
+                    <button type="button" class="viewer-hidden" onclick="loadSavedPlanList()">Listeyi Yükle</button>
                     <div id="networkStatusIndicator" style="display:flex;align-items:center;gap:5px;margin-left:6px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:4px 10px;cursor:default;" title="Ağ paylaşım durumu">
                         <span class="ns-dot" style="width:8px;height:8px;border-radius:50%;background:#94a3b8;flex-shrink:0;"></span>
                         <span class="ns-label" style="font-size:11px;font-weight:600;color:#334155;white-space:nowrap;">Başlatılıyor</span>
                     </div>
-                    <button type="button" onclick="manualSyncFromNetwork()" title="Ağdan en son veriyi yükle">Kayıttan Yükle</button>
+                    <button type="button" class="viewer-hidden" onclick="manualSyncFromNetwork()" title="Ağdan en son veriyi yükle">Kayıttan Yükle</button>
                     <div style="display:flex;align-items:center;gap:2px;margin-left:4px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:2px 6px;" title="Yakınlaştırma (Ctrl+= / Ctrl+-)">
                         <button type="button" onclick="adjustZoom(-0.1)" style="background:none;border:none;font-size:14px;font-weight:700;color:#475569;cursor:pointer;padding:0 3px;line-height:1;">−</button>
                         <span id="zoomLabel" style="font-size:11px;font-weight:600;color:#334155;min-width:32px;text-align:center;">100%</span>
@@ -13314,8 +13333,11 @@
                 const roleLabel = currentUser.role === "admin" ? "Yönetici" : currentUser.role === "editor" ? "Editör" : "Görüntüleyici";
                 badge.textContent = `👤 ${currentUser.username} (${roleLabel})`;
             }
+            const isAdmin = Boolean(currentUser && currentUser.role === "admin");
             const adminBtn = document.getElementById("manageUsersBtn");
-            if (adminBtn) adminBtn.style.display = currentUser && currentUser.role === "admin" ? "" : "none";
+            if (adminBtn) adminBtn.style.display = isAdmin ? "" : "none";
+            const auditBtn = document.getElementById("auditLogBtn");
+            if (auditBtn) auditBtn.style.display = isAdmin ? "" : "none";
         }
 
         async function handleLoginSubmit(event) {

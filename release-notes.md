@@ -1,1 +1,3 @@
-- Kullanıcılar ekranındaki "Sil" ve "Kullanıcı Ekle" işlemleri düzeltildi: tarayıcının desteklemediği sistem dialogları yerine pencerenin kendi içinde açılan formlar kullanılıyor.
+- Görüntüleyici rolü artık gerçekten salt-okunur: yalnızca Plan Çıktısı, Planı Kopyala, PDF Oluştur, Excel Aktar, Müşteriler (görüntüleme), Geçmiş Dökümler, Üretim Raporu ile stok simülasyonu/slot sonu stok/hedefe kadar döküm/KM ihtiyacı alanlarını kullanabiliyor; geri kalan her şey devre dışı.
+- Aktivite Geçmişi ve Kullanıcılar ekranları artık yalnızca yöneticilere görünüyor (editör de göremiyor).
+- Görüntüleyici için Listeyi Kaydet, Listeyi Yükle ve Kayıttan Yükle butonları tamamen gizlendi.
