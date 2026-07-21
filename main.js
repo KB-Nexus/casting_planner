@@ -268,16 +268,16 @@ function createUpdatePromptWindow(version, notes) {
         .replace(/•/g, '<span class="bullet">•</span>');
     const html = `<!doctype html><html lang="tr"><head><meta charset="utf-8"><style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:"Segoe UI",sans-serif;background:#0f172a;color:#e2e8f0;height:340px;display:flex;flex-direction:column;overflow:hidden;-webkit-app-region:drag}
-.header{background:linear-gradient(135deg,#0f766e,#0d9488);padding:20px 24px 18px;flex-shrink:0}
+body{font-family:"Segoe UI",sans-serif;background:#0f172a;color:#e2e8f0;height:340px;display:flex;flex-direction:column;overflow:hidden}
+.header{background:linear-gradient(135deg,#0f766e,#0d9488);padding:20px 24px 18px;flex-shrink:0;-webkit-app-region:drag}
 .badge{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#99f6e4;margin-bottom:6px}
 .title{font-size:19px;font-weight:800;color:#fff;line-height:1.2}
 .version{font-size:12px;color:#ccfbf1;margin-top:4px;font-weight:500}
-.body{flex:1;padding:18px 24px;overflow-y:auto;-webkit-app-region:no-drag}
+.body{flex:1;padding:18px 24px;overflow-y:scroll}
 .notes-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:8px}
 .notes{font-size:12.5px;color:#94a3b8;line-height:1.65;white-space:pre-wrap}
 .bullet{color:#14b8a6;margin-right:4px}
-.footer{padding:14px 24px;display:flex;gap:10px;justify-content:flex-end;background:#0f172a;border-top:1px solid #1e293b;flex-shrink:0;-webkit-app-region:no-drag}
+.footer{padding:14px 24px;display:flex;gap:10px;justify-content:flex-end;background:#0f172a;border-top:1px solid #1e293b;flex-shrink:0}
 button{border:none;border-radius:8px;font-size:13px;font-weight:700;padding:9px 22px;cursor:pointer;transition:opacity .15s}
 .btn-update{background:linear-gradient(135deg,#0f766e,#0d9488);color:#fff}
 .btn-update:hover{opacity:.88}
@@ -317,12 +317,12 @@ function createUpdateProgressWindow(version, notes) {
         .replace(/•/g, '<span class="bullet">•</span>');
     const html = `<!doctype html><html lang="tr"><head><meta charset="utf-8"><style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:"Segoe UI",sans-serif;background:#0f172a;color:#e2e8f0;height:340px;display:flex;flex-direction:column;overflow:hidden;-webkit-app-region:drag}
-.header{background:linear-gradient(135deg,#0f766e,#0d9488);padding:20px 24px 18px;flex-shrink:0}
+body{font-family:"Segoe UI",sans-serif;background:#0f172a;color:#e2e8f0;height:340px;display:flex;flex-direction:column;overflow:hidden}
+.header{background:linear-gradient(135deg,#0f766e,#0d9488);padding:20px 24px 18px;flex-shrink:0;-webkit-app-region:drag}
 .badge{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#99f6e4;margin-bottom:6px}
 .title{font-size:19px;font-weight:800;color:#fff;line-height:1.2}
 .version{font-size:12px;color:#ccfbf1;margin-top:4px;font-weight:500}
-.body{flex:1;padding:16px 24px 12px;overflow-y:auto;-webkit-app-region:no-drag}
+.body{flex:1;padding:16px 24px 12px;overflow-y:scroll}
 .notes-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:8px}
 .notes{font-size:12.5px;color:#94a3b8;line-height:1.65;white-space:pre-wrap}
 .bullet{color:#14b8a6;margin-right:4px}

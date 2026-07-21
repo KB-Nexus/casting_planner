@@ -1,2 +1,1 @@
-- Güncelleme ekranında tırnak işareti içeren notlar "undefined" olarak görünüyordu (ör. "Sil" → undefinedSilundefined); metin kaçışlama hatası düzeltildi.
-- Güncelleme indirme/kurulum ekranındaki not kutusu artık fare tekerleğiyle kaydırılabiliyor; önceden pencere sürükleme alanı kaydırmayı engelliyordu.
+- Güncelleme ekranındaki not kutusunda kaydırma hâlâ çalışmıyor ve pencereyi sürüklüyordu; sürüklenebilir alan artık sadece üst başlık şeridiyle sınırlandı, not kutusu tamamen bağımsız kaydırılabiliyor.
