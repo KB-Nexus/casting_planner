@@ -1,2 +1,1 @@
-- Kullanıcılar ekranındaki "Sil" onayı ve "Kullanıcı Ekle" iletişim kutuları artık arka planda kalmıyor, doğrudan pencerede görünüyor.
-- Çıkış yapma işlemi artık anlık; ağ isteği beklenmeden oturum kapanıyor.
+- Kullanıcılar ekranındaki "Sil" ve "Kullanıcı Ekle" işlemleri düzeltildi: tarayıcının desteklemediği sistem dialogları yerine pencerenin kendi içinde açılan formlar kullanılıyor.

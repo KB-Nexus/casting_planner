@@ -12535,26 +12535,94 @@
                         td button { background: #fee2e2; border: none; border-radius: 6px; color: #b91c1c; cursor: pointer; font-size: 11px; font-weight: 700; padding: 4px 10px; }
                         tr:nth-child(even) td { background: #f8fafc; }
                         .empty-row { color: #94a3b8; font-weight: 700; text-align: center; }
+                        .modal-overlay { align-items: center; background: rgba(0,0,0,0.35); bottom: 0; display: none; justify-content: center; left: 0; position: fixed; right: 0; top: 0; z-index: 999; }
+                        .modal-overlay.visible { display: flex; }
+                        .modal-box { background: #fff; border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.18); padding: 22px 26px; width: min(90vw, 320px); }
+                        .modal-box h3 { margin: 0 0 14px; font-size: 15px; }
+                        .modal-box p { font-size: 14px; font-weight: 700; margin: 0 0 18px; }
+                        .modal-box label { display: block; font-size: 11px; font-weight: 700; color: #475569; margin: 10px 0 4px; }
+                        .modal-box input, .modal-box select { width: 100%; border: 1px solid #cbd5e1; border-radius: 7px; padding: 8px 10px; font: inherit; box-sizing: border-box; }
+                        .modal-actions { display: flex; gap: 8px; margin-top: 18px; }
+                        .modal-actions button { border: none; border-radius: 7px; cursor: pointer; flex: 1; font-size: 13px; font-weight: 700; padding: 9px; }
+                        .modal-confirm { background: #0f766e; color: #fff; }
+                        .modal-danger { background: #dc2626; color: #fff; }
+                        .modal-cancel { background: #e2e8f0; color: #111; }
+                        .modal-error { color: #b91c1c; font-size: 12px; font-weight: 700; margin-top: 8px; display: none; }
                     </style>
                     <scr` + `ipt>
-                        function addUser() {
-                            const username = prompt("Yeni kullanıcı adı:");
-                            if (!username) return;
-                            const password = prompt("Şifre (en az 6 karakter):");
-                            if (!password || password.length < 6) { alert("Şifre en az 6 karakter olmalı."); return; }
-                            const role = prompt("Rol (admin / editor / viewer):", "viewer");
-                            if (!["admin", "editor", "viewer"].includes(role)) { alert("Rol admin, editor veya viewer olmalı."); return; }
-                            if (window.opener) window.opener.createManagedUser(username.trim(), password, role);
+                        function openAddUserModal() {
+                            document.getElementById("addUserError").style.display = "none";
+                            document.getElementById("newUsername").value = "";
+                            document.getElementById("newPassword").value = "";
+                            document.getElementById("newRole").value = "viewer";
+                            document.getElementById("addUserOverlay").classList.add("visible");
+                            document.getElementById("newUsername").focus();
                         }
+                        function closeAddUserModal() {
+                            document.getElementById("addUserOverlay").classList.remove("visible");
+                        }
+                        function submitAddUser() {
+                            const username = document.getElementById("newUsername").value.trim();
+                            const password = document.getElementById("newPassword").value;
+                            const role = document.getElementById("newRole").value;
+                            const errorBox = document.getElementById("addUserError");
+                            if (!username || password.length < 6) {
+                                errorBox.textContent = "Kullanıcı adı girin ve şifre en az 6 karakter olsun.";
+                                errorBox.style.display = "block";
+                                return;
+                            }
+                            closeAddUserModal();
+                            if (window.opener) window.opener.createManagedUser(username, password, role);
+                        }
+                        let pendingDeleteUsername = null;
                         function removeUser(username) {
-                            if (!confirm('"' + username + '" kullanıcısı silinsin mi?')) return;
-                            if (window.opener) window.opener.deleteManagedUser(username);
+                            pendingDeleteUsername = username;
+                            document.getElementById("deleteUserMessage").textContent = '"' + username + '" kullanıcısı silinsin mi?';
+                            document.getElementById("deleteUserOverlay").classList.add("visible");
+                        }
+                        function closeDeleteUserModal() {
+                            document.getElementById("deleteUserOverlay").classList.remove("visible");
+                            pendingDeleteUsername = null;
+                        }
+                        function confirmDeleteUser() {
+                            const username = pendingDeleteUsername;
+                            closeDeleteUserModal();
+                            if (username && window.opener) window.opener.deleteManagedUser(username);
                         }
                     </scr` + `ipt>
                 </head>
                 <body>
+                    <div id="addUserOverlay" class="modal-overlay">
+                        <div class="modal-box">
+                            <h3>Yeni Kullanıcı</h3>
+                            <label>Kullanıcı adı</label>
+                            <input id="newUsername" type="text">
+                            <label>Şifre (en az 6 karakter)</label>
+                            <input id="newPassword" type="password">
+                            <label>Rol</label>
+                            <select id="newRole">
+                                <option value="viewer">Görüntüleyici</option>
+                                <option value="editor">Editör</option>
+                                <option value="admin">Yönetici</option>
+                            </select>
+                            <div id="addUserError" class="modal-error"></div>
+                            <div class="modal-actions">
+                                <button class="modal-cancel" onclick="closeAddUserModal()">İptal</button>
+                                <button class="modal-confirm" onclick="submitAddUser()">Ekle</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="deleteUserOverlay" class="modal-overlay">
+                        <div class="modal-box">
+                            <p id="deleteUserMessage"></p>
+                            <div class="modal-actions">
+                                <button class="modal-cancel" onclick="closeDeleteUserModal()">İptal</button>
+                                <button class="modal-danger" onclick="confirmDeleteUser()">Evet, Sil</button>
+                            </div>
+                        </div>
+                    </div>
                     <main class="sheet">
-                        <div class="hero"><h1>Kullanıcılar</h1><button onclick="addUser()">+ Kullanıcı Ekle</button></div>
+                        <div class="hero"><h1>Kullanıcılar</h1><button onclick="openAddUserModal()">+ Kullanıcı Ekle</button></div>
                         <table><thead><tr><th>Kullanıcı adı</th><th>Rol</th><th>Oluşturulma</th><th></th></tr></thead><tbody>${rows}</tbody></table>
                     </main>
                 </body>
