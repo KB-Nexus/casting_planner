@@ -1,4 +1,3 @@
-- Sipariş, tamamlanmış döküm kaydı ve kalite portföyü silme işlemlerine onay adımı eklendi.
-- Geri alma (undo) geçmişi artık kalıcı: uygulama kapatılıp açılsa bile son 40 işlem geri alınabiliyor.
-- Yeni "Üretim Raporu" ekranı: haftalık/aylık üretim ve çap dağılımı, müşteri bazlı döküm geçmişi, ocak bazlı üretim ve boşta kalma süresi.
-- Kritik silme işlemleri artık buluttaki denetim (audit) kaydına düşüyor.
+- Üyelikli giriş eklendi: uygulama artık kullanıcı adı/şifre ile açılıyor. Roller: Yönetici, Editör, Görüntüleyici — görüntüleyiciler veri kaydedemez.
+- Yöneticiler için "Kullanıcılar" ekranı: yeni kullanıcı ekleme/silme.
+- Yeni "Aktivite Geçmişi" ekranı: kritik silme işlemlerinin kim/ne zaman kaydı buradan izlenebiliyor.

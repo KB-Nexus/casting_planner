@@ -3587,6 +3587,23 @@
             padding: 4px 9px;
             white-space: nowrap;
         }
+        body.viewer-mode input:not(#loginUsername):not(#loginPassword),
+        body.viewer-mode select,
+        body.viewer-mode textarea,
+        body.viewer-mode .viewer-blocked {
+            pointer-events: none !important;
+            opacity: 0.55 !important;
+            filter: grayscale(35%);
+        }
+        #currentUserBadge {
+            background: #0f172a;
+            border-radius: 999px;
+            color: #99f6e4;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 5px 12px;
+            white-space: nowrap;
+        }
     </style>
 
     <!-- ╔══════════════════════════════════════════════════════════╗
@@ -4689,6 +4706,18 @@
 
 </head>
 <body>
+    <div id="loginOverlay" style="display:none;position:fixed;inset:0;z-index:100000;background:#0f172a;align-items:center;justify-content:center;">
+        <form id="loginForm" style="background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.35);padding:32px;width:min(90vw,360px);" onsubmit="return handleLoginSubmit(event)">
+            <div style="font-size:12px;font-weight:800;letter-spacing:.1em;color:#0f766e;text-transform:uppercase;margin-bottom:4px;">Kenan Metal</div>
+            <h2 style="margin:0 0 20px;font-size:20px;">Döküm Planlayıcı Girişi</h2>
+            <div id="loginError" style="display:none;background:#fef2f2;color:#b91c1c;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:700;margin-bottom:14px;"></div>
+            <label style="display:block;font-size:12px;font-weight:700;margin-bottom:5px;">Kullanıcı adı</label>
+            <input id="loginUsername" type="text" required autofocus style="width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:10px 12px;font:inherit;margin-bottom:14px;box-sizing:border-box;">
+            <label style="display:block;font-size:12px;font-weight:700;margin-bottom:5px;">Şifre</label>
+            <input id="loginPassword" type="password" required style="width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:10px 12px;font:inherit;margin-bottom:18px;box-sizing:border-box;">
+            <button id="loginSubmitBtn" type="submit" style="width:100%;border:none;border-radius:8px;background:#0f766e;color:#fff;font-weight:800;padding:11px;font-size:14px;cursor:pointer;">Giriş Yap</button>
+        </form>
+    </div>
     <div id="backupSelectModal">
         <div id="backupSelectBox">
             <h3>Yüklenecek kaydı seç</h3>
@@ -4941,6 +4970,8 @@
                 <div class="plan-table-toolbar">
                     <button type="button" onclick="openCompletedCastingsPage()">✓ Geçmiş Dökümler</button>
                     <button type="button" onclick="openProductionReportPage()">📈 Üretim Raporu</button>
+                    <button type="button" onclick="openAuditLogPage()">🕵️ Aktivite Geçmişi</button>
+                    <button type="button" id="manageUsersBtn" onclick="openUserManagementPage()" style="display:none;">👥 Kullanıcılar</button>
                     <button type="button" onclick="saveCurrentPlanList()">Listeyi Kaydet</button>
                     <button type="button" onclick="loadSavedPlanList()">Listeyi Yükle</button>
                     <div id="networkStatusIndicator" style="display:flex;align-items:center;gap:5px;margin-left:6px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:4px 10px;cursor:default;" title="Ağ paylaşım durumu">
@@ -4965,6 +4996,8 @@
                         <button id="ovenToggleBtn1" type="button" onclick="confirmToggleOven(1)" style="font-size:9px;padding:0 14px;border-radius:3px;border:none;cursor:pointer;font-weight:700;line-height:1.1;min-width:46px;">O2</button>
                         <button id="ovenToggleBtn2" type="button" onclick="confirmToggleOven(2)" style="font-size:9px;padding:0 14px;border-radius:3px;border:none;cursor:pointer;font-weight:700;line-height:1.1;min-width:46px;">O3</button>
                     </div>
+                    <span id="currentUserBadge" class="viewer-allowed" style="margin-left:auto;"></span>
+                    <button type="button" class="viewer-allowed" onclick="logoutCurrentUser()" title="Çıkış yap" style="background:#f8fafc;border:1px solid #cbd5e1;">🚪 Çıkış</button>
                 </div>
 
                 <div class="table-container" style="position:relative;">
@@ -12422,6 +12455,162 @@
             reportWindow.focus();
         }
 
+        function createAuditLogHtml(events) {
+            const rows = events.map(evt => {
+                const ts = evt.ts ? new Date(evt.ts).toLocaleString("tr-TR") : "";
+                return `<tr><td>${escapeHtml(ts)}</td><td>${escapeHtml(evt.username || "")}</td><td>${escapeHtml(evt.hostname || "")}</td><td>${escapeHtml(evt.action || "")}</td><td>${escapeHtml(evt.detail || "")}</td></tr>`;
+            }).join("") || `<tr><td colspan="5" class="empty-row">Kayıt yok</td></tr>`;
+            return `
+                <!doctype html>
+                <html lang="tr">
+                <head>
+                    <meta charset="utf-8">
+                    <title>Aktivite Geçmişi</title>
+                    <style>
+                        * { box-sizing: border-box; }
+                        body { background: #eef2f6; color: #111827; font-family: Arial, sans-serif; margin: 0; padding: 16px; }
+                        .sheet { background: #ffffff; border: 1px solid #d9e2ea; border-radius: 10px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.10); overflow: hidden; }
+                        .hero { background: #101820; color: #ffffff; padding: 12px 16px; }
+                        .hero h1 { font-size: 16px; margin: 0; }
+                        table { border-collapse: collapse; font-size: 12px; width: 100%; }
+                        th { background: #f1f5f9; color: #334155; font-size: 10px; letter-spacing: 0.4px; padding: 7px 10px; text-align: left; text-transform: uppercase; }
+                        td { border-top: 1px solid #edf2f7; padding: 5px 10px; }
+                        tr:nth-child(even) td { background: #f8fafc; }
+                        .empty-row { color: #94a3b8; font-weight: 700; text-align: center; }
+                    </style>
+                </head>
+                <body>
+                    <main class="sheet">
+                        <div class="hero"><h1>Aktivite Geçmişi (son ${events.length} kayıt)</h1></div>
+                        <table><thead><tr><th>Zaman</th><th>Kullanıcı</th><th>Bilgisayar</th><th>İşlem</th><th>Detay</th></tr></thead><tbody>${rows}</tbody></table>
+                    </main>
+                </body>
+                </html>
+            `;
+        }
+
+        async function openAuditLogPage() {
+            if (!window.networkStore || !window.networkStore.listAuditLog) {
+                showAlert("Aktivite geçmişi bu ortamda desteklenmiyor.", "error");
+                return;
+            }
+            const result = await window.networkStore.listAuditLog(300);
+            if (!result || !result.ok) {
+                showAlert("Aktivite geçmişi yüklenemedi.", "error");
+                return;
+            }
+            const events = (result.data && result.data.events) || [];
+            const reportWindow = openSizedReportWindow();
+            if (!reportWindow) {
+                showAlert("Aktivite geçmişi penceresi açılamadı. Tarayıcı izinlerini kontrol edin.", "error");
+                return;
+            }
+            reportWindow.document.write(createAuditLogHtml(events));
+            reportWindow.document.close();
+            reportWindow.focus();
+        }
+
+        function createUserManagementHtml(users) {
+            const roleLabel = role => role === "admin" ? "Yönetici" : role === "editor" ? "Editör" : "Görüntüleyici";
+            const rows = users.map(u => {
+                const createdAt = u.created_at ? new Date(u.created_at).toLocaleString("tr-TR") : "";
+                return `<tr><td>${escapeHtml(u.username)}</td><td>${escapeHtml(roleLabel(u.role))}</td><td>${escapeHtml(createdAt)}</td><td><button onclick="window.opener.deleteManagedUser('${escapeHtml(u.username).replace(/'/g, "\\'")}')">Sil</button></td></tr>`;
+            }).join("") || `<tr><td colspan="4" class="empty-row">Kullanıcı yok</td></tr>`;
+            return `
+                <!doctype html>
+                <html lang="tr">
+                <head>
+                    <meta charset="utf-8">
+                    <title>Kullanıcılar</title>
+                    <style>
+                        * { box-sizing: border-box; }
+                        body { background: #eef2f6; color: #111827; font-family: Arial, sans-serif; margin: 0; padding: 16px; }
+                        .sheet { background: #ffffff; border: 1px solid #d9e2ea; border-radius: 10px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.10); margin-bottom: 16px; overflow: hidden; }
+                        .hero { align-items: center; background: #101820; color: #ffffff; display: flex; justify-content: space-between; padding: 12px 16px; }
+                        .hero h1 { font-size: 16px; margin: 0; }
+                        .hero button { background: #0f766e; border: none; border-radius: 7px; color: #fff; cursor: pointer; font-size: 12px; font-weight: 700; padding: 7px 14px; }
+                        table { border-collapse: collapse; font-size: 12px; width: 100%; }
+                        th { background: #f1f5f9; color: #334155; font-size: 10px; letter-spacing: 0.4px; padding: 7px 10px; text-align: left; text-transform: uppercase; }
+                        td { border-top: 1px solid #edf2f7; padding: 6px 10px; }
+                        td button { background: #fee2e2; border: none; border-radius: 6px; color: #b91c1c; cursor: pointer; font-size: 11px; font-weight: 700; padding: 4px 10px; }
+                        tr:nth-child(even) td { background: #f8fafc; }
+                        .empty-row { color: #94a3b8; font-weight: 700; text-align: center; }
+                    </style>
+                </head>
+                <body>
+                    <main class="sheet">
+                        <div class="hero"><h1>Kullanıcılar</h1><button onclick="window.opener.openCreateUserPrompt()">+ Kullanıcı Ekle</button></div>
+                        <table><thead><tr><th>Kullanıcı adı</th><th>Rol</th><th>Oluşturulma</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+                    </main>
+                </body>
+                </html>
+            `;
+        }
+
+        let userManagementWindow = null;
+
+        async function refreshUserManagementWindow() {
+            if (!userManagementWindow || userManagementWindow.closed) return;
+            const result = await window.authStore.listUsers();
+            if (!result || !result.ok) return;
+            userManagementWindow.document.open();
+            userManagementWindow.document.write(createUserManagementHtml((result.data && result.data.users) || []));
+            userManagementWindow.document.close();
+        }
+
+        async function openUserManagementPage() {
+            if (!currentUser || currentUser.role !== "admin") {
+                showAlert("Bu ekran sadece yöneticiler içindir.", "error");
+                return;
+            }
+            const result = await window.authStore.listUsers();
+            if (!result || !result.ok) {
+                showAlert("Kullanıcılar yüklenemedi.", "error");
+                return;
+            }
+            userManagementWindow = openSizedReportWindow();
+            if (!userManagementWindow) {
+                showAlert("Kullanıcılar penceresi açılamadı. Tarayıcı izinlerini kontrol edin.", "error");
+                return;
+            }
+            userManagementWindow.document.write(createUserManagementHtml((result.data && result.data.users) || []));
+            userManagementWindow.document.close();
+            userManagementWindow.focus();
+        }
+
+        async function openCreateUserPrompt() {
+            const username = prompt("Yeni kullanıcı adı:");
+            if (!username) return;
+            const password = prompt("Şifre (en az 6 karakter):");
+            if (!password || password.length < 6) {
+                showAlert("Şifre en az 6 karakter olmalı.", "error");
+                return;
+            }
+            const role = prompt("Rol (admin / editor / viewer):", "viewer");
+            if (!["admin", "editor", "viewer"].includes(role)) {
+                showAlert("Rol admin, editor veya viewer olmalı.", "error");
+                return;
+            }
+            const result = await window.authStore.createUser(username.trim(), password, role);
+            if (!result || !result.ok) {
+                showAlert(result && result.reason === "username_taken" ? "Bu kullanıcı adı zaten var." : "Kullanıcı oluşturulamadı.", "error");
+                return;
+            }
+            showAlert("Kullanıcı oluşturuldu.", "success");
+            refreshUserManagementWindow();
+        }
+
+        async function deleteManagedUser(username) {
+            if (!await showConfirm(`"${username}" kullanıcısı silinsin mi?`)) return;
+            const result = await window.authStore.deleteUser(username);
+            if (!result || !result.ok) {
+                showAlert(result && result.reason === "cannot_delete_self" ? "Kendi hesabınızı silemezsiniz." : "Kullanıcı silinemedi.", "error");
+                return;
+            }
+            showAlert("Kullanıcı silindi.", "success");
+            refreshUserManagementWindow();
+        }
+
         function createReportHtml() {
             const reportCastings = getReportCastings();
             const includeNote = hasReportNotes(reportCastings);
@@ -12852,7 +13041,13 @@
             try {
                 const result = await window.networkStore.save(collectAllData());
                 if (!result.ok) {
-                    if (result.reason === 'network_unavailable') {
+                    if (result.reason === 'forbidden_role') {
+                        setNetworkStatus('error', 'Görüntüleyici kaydedemez');
+                    } else if (result.reason === 'session_expired') {
+                        setNetworkStatus('error', 'Oturum sona erdi');
+                        showAlert("Oturumunuz sona erdi, lütfen tekrar giriş yapın.", "error");
+                        setTimeout(() => location.reload(), 1500);
+                    } else if (result.reason === 'network_unavailable') {
                         setNetworkStatus('idle', 'Ağ yok – yerel');
                     } else if (result.reason === 'locked') {
                         const info = result.info || {};
@@ -13040,7 +13235,77 @@
 
         // ────────────────────────────────────────────────────────────────────────
 
-        window.addEventListener('load', () => {
+        let currentUser = null;
+
+        function applyRoleRestrictions() {
+            document.body.classList.toggle("viewer-mode", Boolean(currentUser && currentUser.role === "viewer"));
+            const badge = document.getElementById("currentUserBadge");
+            if (badge && currentUser) {
+                const roleLabel = currentUser.role === "admin" ? "Yönetici" : currentUser.role === "editor" ? "Editör" : "Görüntüleyici";
+                badge.textContent = `👤 ${currentUser.username} (${roleLabel})`;
+            }
+            const adminBtn = document.getElementById("manageUsersBtn");
+            if (adminBtn) adminBtn.style.display = currentUser && currentUser.role === "admin" ? "" : "none";
+        }
+
+        async function handleLoginSubmit(event) {
+            event.preventDefault();
+            const username = document.getElementById("loginUsername").value.trim();
+            const password = document.getElementById("loginPassword").value;
+            const errorBox = document.getElementById("loginError");
+            const submitBtn = document.getElementById("loginSubmitBtn");
+            errorBox.style.display = "none";
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Giriş yapılıyor…";
+            try {
+                const result = await window.authStore.login(username, password);
+                if (!result || !result.ok) {
+                    const messages = {
+                        invalid_credentials: "Kullanıcı adı veya şifre hatalı.",
+                        not_configured: "Bulut bağlantı ayarları bulunamadı.",
+                        connection_error: "İnternete ulaşılamadı. Bağlantınızı kontrol edin.",
+                    };
+                    errorBox.textContent = (result && messages[result.reason]) || "Giriş yapılamadı, tekrar deneyin.";
+                    errorBox.style.display = "block";
+                    return false;
+                }
+                currentUser = { username: result.username, role: result.role };
+                document.getElementById("loginOverlay").style.display = "none";
+                applyRoleRestrictions();
+                startApplication();
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Giriş Yap";
+            }
+            return false;
+        }
+
+        function showLoginOverlay() {
+            document.getElementById("loginOverlay").style.display = "flex";
+        }
+
+        async function logoutCurrentUser() {
+            if (!await showConfirm("Çıkış yapmak istediğinize emin misiniz?")) return;
+            await window.authStore.logout();
+            location.reload();
+        }
+
+        window.addEventListener('load', async () => {
+            if (window.authStore) {
+                const session = await window.authStore.getSession();
+                if (session && session.username) {
+                    currentUser = { username: session.username, role: session.role };
+                    applyRoleRestrictions();
+                    startApplication();
+                } else {
+                    showLoginOverlay();
+                }
+            } else {
+                startApplication();
+            }
+        });
+
+        function startApplication() {
             if (window.networkStore && window.networkStore.getAppVersion) {
                 window.networkStore.getAppVersion().then(version => {
                     const badge = document.getElementById("appVersionBadge");
@@ -13096,7 +13361,7 @@
                     }
                 }, { passive: false });
             }
-        });
+        }
 
         (function() {
             const bc = new BroadcastChannel('plan-copy');

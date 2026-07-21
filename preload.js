@@ -11,6 +11,16 @@ contextBridge.exposeInMainWorld('networkStore', {
     uploadCloudPlan: (plan) => ipcRenderer.invoke('cloud-plan-upload', plan),
     uploadCloudHistory: (records) => ipcRenderer.invoke('cloud-history-upload', records),
     logAudit: (action, detail) => ipcRenderer.invoke('cloud-audit-log', action, detail),
+    listAuditLog: (limit) => ipcRenderer.invoke('cloud-audit-list', limit),
     openReportWindow: (html) => ipcRenderer.invoke('open-report-window', html),
     printCurrentWindow: () => ipcRenderer.invoke('print-current-window'),
+});
+
+contextBridge.exposeInMainWorld('authStore', {
+    getSession: () => ipcRenderer.invoke('auth-get-session'),
+    login: (username, password) => ipcRenderer.invoke('auth-login', username, password),
+    logout: () => ipcRenderer.invoke('auth-logout'),
+    listUsers: () => ipcRenderer.invoke('auth-list-users'),
+    createUser: (username, password, role) => ipcRenderer.invoke('auth-create-user', { username, password, role }),
+    deleteUser: (username) => ipcRenderer.invoke('auth-delete-user', username),
 });

@@ -34,6 +34,24 @@ export default {
     if (url.pathname === "/api/audit" && request.method === "GET") {
       return listAuditEvents(request, env);
     }
+    if (url.pathname === "/api/users/bootstrap" && request.method === "POST") {
+      return bootstrapAdmin(request, env);
+    }
+    if (url.pathname === "/api/users/login" && request.method === "POST") {
+      return userLogin(request, env);
+    }
+    if (url.pathname === "/api/users/logout" && request.method === "POST") {
+      return userLogout(request, env);
+    }
+    if (url.pathname === "/api/users/list" && request.method === "POST") {
+      return userList(request, env);
+    }
+    if (url.pathname === "/api/users/create" && request.method === "POST") {
+      return userCreate(request, env);
+    }
+    if (url.pathname === "/api/users/delete" && request.method === "POST") {
+      return userDelete(request, env);
+    }
     if (url.pathname === "/api/lock/acquire" && request.method === "POST") {
       return acquireLock(request, env);
     }
@@ -181,6 +199,10 @@ async function saveAppState(request, env) {
   const { payload, expectedVersion, username, hostname, token } = body || {};
   if (payload === undefined || typeof expectedVersion !== "number" || !token) {
     return json({ error: "invalid_payload" }, 400);
+  }
+  if (body && body.sessionToken) {
+    const auth = await requireSession(request, env, body, "editor");
+    if (auth.error) return auth.error;
   }
   const payloadText = JSON.stringify(payload);
   if (payloadText.length > MAX_APP_STATE_BYTES) {
@@ -330,6 +352,169 @@ async function listAuditEvents(request, env) {
   });
 }
 
+const ROLE_RANK = { viewer: 0, editor: 1, admin: 2 };
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const PBKDF2_ITERATIONS = 100000;
+
+function bytesToHex(bytes) {
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function hexToBytes(hex) {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+  return bytes;
+}
+
+async function hashPassword(password, saltHex) {
+  const salt = saltHex ? hexToBytes(saltHex) : crypto.getRandomValues(new Uint8Array(16));
+  const keyMaterial = await crypto.subtle.importKey("raw", encoder.encode(password), { name: "PBKDF2" }, false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
+    keyMaterial,
+    256
+  );
+  return { hash: bytesToHex(new Uint8Array(bits)), salt: bytesToHex(salt) };
+}
+
+async function getSession(env, token) {
+  if (!token) return null;
+  const nowIso = new Date().toISOString();
+  const session = await env.DB.prepare(
+    "SELECT token, user_id, username, role, expires_at FROM user_sessions WHERE token = ?1"
+  ).bind(token).first();
+  if (!session || session.expires_at < nowIso) return null;
+  return session;
+}
+
+async function requireSession(request, env, body, minRole = "viewer") {
+  const session = await getSession(env, body && body.sessionToken);
+  if (!session) return { error: json({ error: "session_expired" }, 401) };
+  if ((ROLE_RANK[session.role] ?? -1) < (ROLE_RANK[minRole] ?? 0)) {
+    return { error: json({ error: "forbidden_role" }, 403) };
+  }
+  return { session };
+}
+
+async function bootstrapAdmin(request, env) {
+  if (!(await requireUploadAuth(request, env))) return json({ error: "unauthorized" }, 401);
+  const count = await env.DB.prepare("SELECT COUNT(*) as c FROM users").first();
+  if (count && count.c > 0) return json({ error: "already_bootstrapped" }, 409);
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "invalid_json" }, 400);
+  }
+  const username = String(body && body.username || "").trim();
+  const password = String(body && body.password || "");
+  if (!username || password.length < 6) return json({ error: "invalid_payload" }, 400);
+  const { hash, salt } = await hashPassword(password);
+  const nowIso = new Date().toISOString();
+  await env.DB.prepare(`
+    INSERT INTO users (username, password_hash, password_salt, role, created_at, created_by)
+    VALUES (?1, ?2, ?3, 'admin', ?4, 'bootstrap')
+  `).bind(username, hash, salt, nowIso).run();
+  return json({ ok: true });
+}
+
+async function userLogin(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "invalid_json" }, 400);
+  }
+  const username = String(body && body.username || "").trim();
+  const password = String(body && body.password || "");
+  if (!username || !password) return json({ error: "invalid_payload" }, 400);
+  const user = await env.DB.prepare(
+    "SELECT id, username, password_hash, password_salt, role FROM users WHERE username = ?1"
+  ).bind(username).first();
+  if (!user) return json({ error: "invalid_credentials" }, 401);
+  const { hash } = await hashPassword(password, user.password_salt);
+  if (!(await secureEqual(hash, user.password_hash))) {
+    return json({ error: "invalid_credentials" }, 401);
+  }
+  const token = bytesToHex(crypto.getRandomValues(new Uint8Array(32)));
+  const nowIso = new Date().toISOString();
+  const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
+  await env.DB.prepare(`
+    INSERT INTO user_sessions (token, user_id, username, role, created_at, expires_at)
+    VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+  `).bind(token, user.id, user.username, user.role, nowIso, expiresAt).run();
+  return json({ token, username: user.username, role: user.role, expiresAt });
+}
+
+async function userLogout(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    body = {};
+  }
+  if (body && body.sessionToken) {
+    await env.DB.prepare("DELETE FROM user_sessions WHERE token = ?1").bind(body.sessionToken).run();
+  }
+  return json({ ok: true });
+}
+
+async function userList(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "invalid_json" }, 400);
+  }
+  const auth = await requireSession(request, env, body, "admin");
+  if (auth.error) return auth.error;
+  const { results } = await env.DB.prepare(
+    "SELECT username, role, created_at, created_by FROM users ORDER BY created_at ASC"
+  ).all();
+  return json({ users: results || [] });
+}
+
+async function userCreate(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "invalid_json" }, 400);
+  }
+  const auth = await requireSession(request, env, body, "admin");
+  if (auth.error) return auth.error;
+  const username = String(body.username || "").trim();
+  const password = String(body.password || "");
+  const role = ["viewer", "editor", "admin"].includes(body.role) ? body.role : "viewer";
+  if (!username || password.length < 6) return json({ error: "invalid_payload" }, 400);
+  const existing = await env.DB.prepare("SELECT id FROM users WHERE username = ?1").bind(username).first();
+  if (existing) return json({ error: "username_taken" }, 409);
+  const { hash, salt } = await hashPassword(password);
+  const nowIso = new Date().toISOString();
+  await env.DB.prepare(`
+    INSERT INTO users (username, password_hash, password_salt, role, created_at, created_by)
+    VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+  `).bind(username, hash, salt, role, nowIso, auth.session.username).run();
+  return json({ ok: true });
+}
+
+async function userDelete(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "invalid_json" }, 400);
+  }
+  const auth = await requireSession(request, env, body, "admin");
+  if (auth.error) return auth.error;
+  const username = String(body.username || "").trim();
+  if (!username) return json({ error: "invalid_payload" }, 400);
+  if (username === auth.session.username) return json({ error: "cannot_delete_self" }, 400);
+  await env.DB.prepare("DELETE FROM users WHERE username = ?1").bind(username).run();
+  await env.DB.prepare("DELETE FROM user_sessions WHERE username = ?1").bind(username).run();
+  return json({ ok: true });
+}
+
 async function acquireLock(request, env) {
   if (!(await requireUploadAuth(request, env))) return json({ error: "unauthorized" }, 401);
   let body;
@@ -340,6 +525,10 @@ async function acquireLock(request, env) {
   }
   const { token, username, hostname, leaseMs } = body || {};
   if (!token || !leaseMs) return json({ error: "invalid_payload" }, 400);
+  if (body && body.sessionToken) {
+    const auth = await requireSession(request, env, body, "editor");
+    if (auth.error) return auth.error;
+  }
   const nowIso = new Date().toISOString();
   const expiresAt = new Date(Date.now() + Number(leaseMs)).toISOString();
 

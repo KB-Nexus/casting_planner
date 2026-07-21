@@ -28,7 +28,26 @@ const lockToken = crypto.randomUUID();
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) app.quit();
 
-function getUsername() { return os.userInfo().username || 'bilinmeyen'; }
+function getSessionFilePath() { return path.join(app.getPath('userData'), 'user-session.json'); }
+
+function loadStoredSession() {
+    try {
+        const parsed = JSON.parse(fs.readFileSync(getSessionFilePath(), 'utf8'));
+        if (parsed && parsed.token && parsed.expiresAt && new Date(parsed.expiresAt) > new Date()) return parsed;
+    } catch { /* oturum dosyası yok veya bozuk */ }
+    return null;
+}
+
+function saveStoredSession(session) {
+    try {
+        if (session) fs.writeFileSync(getSessionFilePath(), JSON.stringify(session), 'utf8');
+        else if (fs.existsSync(getSessionFilePath())) fs.unlinkSync(getSessionFilePath());
+    } catch { /* diske yazılamazsa oturum sadece bellekte kalır */ }
+}
+
+let currentSession = loadStoredSession();
+
+function getUsername() { return (currentSession && currentSession.username) || os.userInfo().username || 'bilinmeyen'; }
 function getHostname() { return os.hostname() || 'bilinmeyen'; }
 
 // Zaman aşımlı async ağ erişim kontrolü
@@ -417,11 +436,20 @@ ipcMain.handle('network-save', async (event, data) => {
             username: getUsername(),
             hostname: getHostname(),
             token: lockToken,
+            sessionToken: currentSession && currentSession.token,
         },
     });
     if (result.reason === 'not_configured') return { ok: false, reason: 'not_configured' };
     if (result.reason === 'connection_error') return { ok: false, reason: 'network_unavailable' };
     if (!result.ok) {
+        if (result.status === 403) {
+            return { ok: false, reason: 'forbidden_role' };
+        }
+        if (result.status === 401 && result.data && result.data.error === 'session_expired') {
+            currentSession = null;
+            saveStoredSession(null);
+            return { ok: false, reason: 'session_expired' };
+        }
         if (result.status === 423) {
             const lock = result.data && result.data.lock;
             const info = lock ? { username: lock.username, hostname: lock.hostname, time: lock.expiresAt } : null;
@@ -449,6 +477,74 @@ ipcMain.handle('network-status', async () => {
         ? { username: result.data.username, hostname: result.data.hostname, time: result.data.expiresAt }
         : null;
     return { available: true, lock, myUsername: getUsername(), myHostname: getHostname() };
+});
+
+// IPC: giriş yapan kullanıcının oturumunu döner (varsa)
+ipcMain.handle('auth-get-session', () => currentSession);
+
+// IPC: kullanıcı adı/şifre ile buluta giriş yapar, oturumu diske kaydeder
+ipcMain.handle('auth-login', async (event, username, password) => {
+    const config = readCloudConfig();
+    if (!config) return { ok: false, reason: 'not_configured' };
+    try {
+        const response = await withTimeout(fetch(`${config.url}/api/users/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json; charset=utf-8' },
+            body: JSON.stringify({ username, password }),
+        }), CLOUD_TIMEOUT_MS);
+        const data = await response.json().catch(() => null);
+        if (!response.ok) return { ok: false, reason: (data && data.error) || 'login_failed' };
+        currentSession = { token: data.token, username: data.username, role: data.role, expiresAt: data.expiresAt };
+        saveStoredSession(currentSession);
+        return { ok: true, username: currentSession.username, role: currentSession.role };
+    } catch (err) {
+        return { ok: false, reason: 'connection_error', message: err.message };
+    }
+});
+
+ipcMain.handle('auth-logout', async () => {
+    const config = readCloudConfig();
+    if (config && currentSession) {
+        try {
+            await withTimeout(fetch(`${config.url}/api/users/logout`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json; charset=utf-8' },
+                body: JSON.stringify({ sessionToken: currentSession.token }),
+            }), CLOUD_TIMEOUT_MS);
+        } catch { /* en iyi çaba */ }
+    }
+    currentSession = null;
+    saveStoredSession(null);
+    return { ok: true };
+});
+
+async function authenticatedUsersRequest(pathName, extraBody) {
+    const config = readCloudConfig();
+    if (!config) return { ok: false, reason: 'not_configured' };
+    if (!currentSession) return { ok: false, reason: 'unauthorized' };
+    try {
+        const response = await withTimeout(fetch(`${config.url}${pathName}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json; charset=utf-8' },
+            body: JSON.stringify({ sessionToken: currentSession.token, ...extraBody }),
+        }), CLOUD_TIMEOUT_MS);
+        const data = await response.json().catch(() => null);
+        if (!response.ok) return { ok: false, reason: (data && data.error) || 'error' };
+        return { ok: true, data };
+    } catch (err) {
+        return { ok: false, reason: 'connection_error', message: err.message };
+    }
+}
+
+ipcMain.handle('auth-list-users', () => authenticatedUsersRequest('/api/users/list'));
+ipcMain.handle('auth-create-user', (event, { username, password, role }) =>
+    authenticatedUsersRequest('/api/users/create', { username, password, role }));
+ipcMain.handle('auth-delete-user', (event, username) =>
+    authenticatedUsersRequest('/api/users/delete', { username }));
+
+// IPC: buluttaki denetim (audit) kayıtlarını listeler
+ipcMain.handle('cloud-audit-list', async (event, limit) => {
+    return cloudRequest(`/api/audit?limit=${encodeURIComponent(limit || 300)}`, { method: 'GET' });
 });
 
 // IPC: release lock manually
