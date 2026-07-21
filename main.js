@@ -273,7 +273,7 @@ body{font-family:"Segoe UI",sans-serif;background:#0f172a;color:#e2e8f0;height:3
 .badge{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#99f6e4;margin-bottom:6px}
 .title{font-size:19px;font-weight:800;color:#fff;line-height:1.2}
 .version{font-size:12px;color:#ccfbf1;margin-top:4px;font-weight:500}
-.body{flex:1;padding:18px 24px;overflow-y:auto}
+.body{flex:1;padding:18px 24px;overflow-y:auto;-webkit-app-region:no-drag}
 .notes-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:8px}
 .notes{font-size:12.5px;color:#94a3b8;line-height:1.65;white-space:pre-wrap}
 .bullet{color:#14b8a6;margin-right:4px}
@@ -313,7 +313,7 @@ function createUpdateProgressWindow(version, notes) {
         webPreferences: { nodeIntegration: false, contextIsolation: true },
     });
     const safeVersion = String(version).replace(/[<>&"']/g, '');
-    const safeNotes = String(notes || '').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))
+    const safeNotes = String(notes || '').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]))
         .replace(/•/g, '<span class="bullet">•</span>');
     const html = `<!doctype html><html lang="tr"><head><meta charset="utf-8"><style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -322,7 +322,7 @@ body{font-family:"Segoe UI",sans-serif;background:#0f172a;color:#e2e8f0;height:3
 .badge{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#99f6e4;margin-bottom:6px}
 .title{font-size:19px;font-weight:800;color:#fff;line-height:1.2}
 .version{font-size:12px;color:#ccfbf1;margin-top:4px;font-weight:500}
-.body{flex:1;padding:16px 24px 12px;overflow-y:auto}
+.body{flex:1;padding:16px 24px 12px;overflow-y:auto;-webkit-app-region:no-drag}
 .notes-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:8px}
 .notes{font-size:12.5px;color:#94a3b8;line-height:1.65;white-space:pre-wrap}
 .bullet{color:#14b8a6;margin-right:4px}

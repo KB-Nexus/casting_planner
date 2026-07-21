@@ -1,3 +1,2 @@
-- Kullanıcılar ekranındaki "Sil" butonu düzeltildi: bozuk HTML nedeniyle tıklamalar hiçbir işe yaramıyordu.
-- Plan tablosundan bir slot/kayıt silindiğinde (müşteri veya KM slotu) artık Aktivite Geçmişi'ne kaydediliyor.
-- Aktivite Geçmişi tablosunda bilgisayar adı yerine yalnızca kullanıcı adı gösteriliyor.
+- Güncelleme ekranında tırnak işareti içeren notlar "undefined" olarak görünüyordu (ör. "Sil" → undefinedSilundefined); metin kaçışlama hatası düzeltildi.
+- Güncelleme indirme/kurulum ekranındaki not kutusu artık fare tekerleğiyle kaydırılabiliyor; önceden pencere sürükleme alanı kaydırmayı engelliyordu.
