@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('networkStore', {
     loadBackup: (filename) => ipcRenderer.invoke('network-load-backup', filename),
     uploadCloudPlan: (plan) => ipcRenderer.invoke('cloud-plan-upload', plan),
     uploadCloudHistory: (records) => ipcRenderer.invoke('cloud-history-upload', records),
+    logAudit: (action, detail) => ipcRenderer.invoke('cloud-audit-log', action, detail),
     openReportWindow: (html) => ipcRenderer.invoke('open-report-window', html),
     printCurrentWindow: () => ipcRenderer.invoke('print-current-window'),
 });

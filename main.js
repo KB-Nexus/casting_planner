@@ -522,6 +522,28 @@ ipcMain.handle('cloud-history-upload', async (event, records) => {
     }
 });
 
+// IPC: kritik işlemleri buluttaki audit_log tablosuna kaydet
+ipcMain.handle('cloud-audit-log', async (event, action, detail) => {
+    const config = readCloudConfig();
+    if (!config) return { ok: false, reason: 'not_configured' };
+    try {
+        const response = await withTimeout(fetch(`${config.url}/api/audit`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${config.uploadToken}`,
+                'Content-Type': 'application/json; charset=utf-8',
+            },
+            body: JSON.stringify({ username: getUsername(), hostname: getHostname(), action, detail }),
+        }), CLOUD_TIMEOUT_MS);
+        if (!response.ok) {
+            return { ok: false, reason: 'http_error', status: response.status };
+        }
+        return { ok: true };
+    } catch (err) {
+        return { ok: false, reason: 'connection_error', message: err.message };
+    }
+});
+
 // IPC: report penceresini aç (temp dosya üzerinden)
 ipcMain.handle('open-report-window', async (event, html) => {
     const tmpPath = path.join(os.tmpdir(), 'casting_plan_report.html');

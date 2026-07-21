@@ -4940,6 +4940,7 @@
 
                 <div class="plan-table-toolbar">
                     <button type="button" onclick="openCompletedCastingsPage()">✓ Geçmiş Dökümler</button>
+                    <button type="button" onclick="openProductionReportPage()">📈 Üretim Raporu</button>
                     <button type="button" onclick="saveCurrentPlanList()">Listeyi Kaydet</button>
                     <button type="button" onclick="loadSavedPlanList()">Listeyi Yükle</button>
                     <div id="networkStatusIndicator" style="display:flex;align-items:center;gap:5px;margin-left:6px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:4px 10px;cursor:default;" title="Ağ paylaşım durumu">
@@ -5054,6 +5055,7 @@
         const KM_ANALYSIS_STORAGE_KEY = "castingPlannerKmAnalysisSettings";
         const CUSTOMER_MAX_LENGTH_STORAGE_KEY = "castingPlannerCustomerMaxLengths";
         const QUALITY_PORTFOLIO_STORAGE_KEY = "castingPlannerQualityPortfolio";
+        const UNDO_HISTORY_STORAGE_KEY = "castingPlannerUndoHistory";
         const LOCAL_LAST_MODIFIED_KEY = "castingPlannerLastModified";
         const DELETED_DEFAULTS_KEY = "castingPlannerDeletedDefaults";
         const DEFAULT_QUALITY_PORTFOLIO = [
@@ -5957,7 +5959,9 @@
             showAlert("Kalite portföyü güncellendi.", "success");
         }
 
-        function deleteQualityPortfolioEntry(quality) {
+        async function deleteQualityPortfolioEntry(quality) {
+            if (!await showConfirm(`"${quality}" kalitesi portföyden silinsin mi?`)) return;
+            logAuditEvent("delete:qualityPortfolioEntry", quality);
             const normalized = normalizeQualityValue(quality);
             qualityPortfolio = qualityPortfolio.filter(item => item !== normalized);
             saveQualityPortfolio();
@@ -5995,9 +5999,26 @@
             return JSON.stringify(state);
         }
 
+        function saveUndoHistory() {
+            try {
+                localStorage.setItem(UNDO_HISTORY_STORAGE_KEY, JSON.stringify(undoHistory));
+            } catch (error) {
+                console.warn("Undo geçmişi kaydedilemedi", error);
+            }
+        }
+
+        function loadUndoHistory() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(UNDO_HISTORY_STORAGE_KEY) || "[]");
+                return Array.isArray(saved) ? saved.slice(-40) : [];
+            } catch (error) {
+                return [];
+            }
+        }
+
         function initializeUndoHistory() {
             lastUndoSnapshot = serializeUndoState();
-            undoHistory = [];
+            undoHistory = loadUndoHistory();
         }
 
         function recordUndoCheckpoint() {
@@ -6017,6 +6038,7 @@
                 undoHistory.shift();
             }
             lastUndoSnapshot = currentSnapshot;
+            saveUndoHistory();
         }
 
         function pushUndoSnapshot(snapshot) {
@@ -6028,6 +6050,7 @@
                 undoHistory.shift();
             }
             lastUndoSnapshot = serializeUndoState();
+            saveUndoHistory();
         }
 
         function runWithoutUndoRecording(callback) {
@@ -6108,6 +6131,7 @@
                 renderKmAnalysisSettings();
                 generatePlan();
                 lastUndoSnapshot = serializeUndoState();
+                saveUndoHistory();
                 showAlert("Son işlem geri alındı.", "success");
             } finally {
                 isRestoringUndo = false;
@@ -8200,17 +8224,21 @@
             showAlert("Sipariş slot ataması kaldırıldı.", "success");
         }
 
-        function deleteOrder(orderId, event) {
+        async function deleteOrder(orderId, event) {
             if (event) {
                 event.stopPropagation();
                 event.preventDefault();
             }
 
+            if (!await showConfirm("Bu sipariş silinsin mi?")) return;
+
             const beforeCount = pendingOrders.length;
+            const removedOrder = pendingOrders.find(item => item.id === orderId);
             pendingOrders = pendingOrders.filter(item => item.id !== orderId);
             if (pendingOrders.length === beforeCount) {
                 return;
             }
+            logAuditEvent("delete:order", removedOrder ? `${removedOrder.customer || ""} ${removedOrder.diameter || ""}mm` : orderId);
 
             savePendingOrders();
             refreshOrderAssignmentViews();
@@ -10723,13 +10751,16 @@
                 undoHistory.shift();
             }
             lastUndoSnapshot = serializeUndoState();
+            saveUndoHistory();
             } finally {
                 isUndoRecordingSuppressed = false;
             }
         }
 
         function deleteCompletedCasting(recordId) {
+            const removed = completedCastings.find(item => String(item.id) === String(recordId));
             completedCastings = completedCastings.filter(item => String(item.id) !== String(recordId));
+            logAuditEvent("delete:completedCasting", removed ? `${removed.customer || ""} ${removed.diameter || ""}mm lot:${removed.lot || ""}` : recordId);
             saveCompletedCastings();
             scheduleSyncToNetwork();
             scheduleCloudHistorySync();
@@ -12243,6 +12274,154 @@
             historyWindow.focus();
         }
 
+        function getIsoWeekKey(date) {
+            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+            const dayNum = (d.getUTCDay() + 6) % 7;
+            d.setUTCDate(d.getUTCDate() - dayNum + 3);
+            const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+            const weekNum = 1 + Math.round(((d - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
+            return `${d.getUTCFullYear()}-H${String(weekNum).padStart(2, "0")}`;
+        }
+
+        function getMonthKey(date) {
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+        }
+
+        function getRecordDate(record) {
+            const d = new Date(record.completedAt || record.scheduledTime || 0);
+            return isNaN(d.getTime()) ? null : d;
+        }
+
+        function buildProductionReportData() {
+            const weekly = new Map();
+            const monthly = new Map();
+            const byCustomer = new Map();
+            const byOven = new Map();
+
+            completedCastings.forEach(record => {
+                const date = getRecordDate(record);
+                if (!date) return;
+                const diameter = String(record.diameter || "-");
+                const customer = upperText(record.customer || "").trim() || "BİLİNMİYOR";
+                const ovenIndex = Number.isInteger(record.ovenIndex) ? record.ovenIndex : null;
+
+                const weekKey = getIsoWeekKey(date);
+                if (!weekly.has(weekKey)) weekly.set(weekKey, { total: 0, byDiameter: {} });
+                const w = weekly.get(weekKey);
+                w.total += 1;
+                w.byDiameter[diameter] = (w.byDiameter[diameter] || 0) + 1;
+
+                const monthKey = getMonthKey(date);
+                if (!monthly.has(monthKey)) monthly.set(monthKey, { total: 0, byDiameter: {} });
+                const m = monthly.get(monthKey);
+                m.total += 1;
+                m.byDiameter[diameter] = (m.byDiameter[diameter] || 0) + 1;
+
+                if (!byCustomer.has(customer)) byCustomer.set(customer, { total: 0, lastDate: date });
+                const c = byCustomer.get(customer);
+                c.total += 1;
+                if (date > c.lastDate) c.lastDate = date;
+
+                if (ovenIndex !== null) {
+                    if (!byOven.has(ovenIndex)) byOven.set(ovenIndex, { total: 0, dates: [] });
+                    const o = byOven.get(ovenIndex);
+                    o.total += 1;
+                    o.dates.push(date);
+                }
+            });
+
+            return { weekly, monthly, byCustomer, byOven };
+        }
+
+        function createProductionReportHtml() {
+            const { weekly, monthly, byCustomer, byOven } = buildProductionReportData();
+            const fmtDate = d => d.toLocaleDateString("tr-TR");
+
+            const sortedWeeks = Array.from(weekly.entries()).sort((a, b) => a[0] < b[0] ? 1 : -1).slice(0, 12);
+            const sortedMonths = Array.from(monthly.entries()).sort((a, b) => a[0] < b[0] ? 1 : -1).slice(0, 12);
+            const sortedCustomers = Array.from(byCustomer.entries())
+                .filter(([name]) => name !== "KM")
+                .sort((a, b) => b[1].total - a[1].total || (b[1].lastDate - a[1].lastDate));
+            const sortedOvens = Array.from(byOven.entries()).sort((a, b) => a[0] - b[0]);
+
+            const diameterBreakdownText = byDiameter => Object.entries(byDiameter)
+                .sort((a, b) => b[1] - a[1])
+                .map(([d, c]) => `${d}mm: ${c}`)
+                .join(", ");
+
+            const weeklyRows = sortedWeeks.map(([key, data]) =>
+                `<tr><td>${key}</td><td>${data.total}</td><td>${escapeHtml(diameterBreakdownText(data.byDiameter))}</td></tr>`
+            ).join("") || `<tr><td colspan="3" class="empty-row">Veri yok</td></tr>`;
+
+            const monthlyRows = sortedMonths.map(([key, data]) =>
+                `<tr><td>${key}</td><td>${data.total}</td><td>${escapeHtml(diameterBreakdownText(data.byDiameter))}</td></tr>`
+            ).join("") || `<tr><td colspan="3" class="empty-row">Veri yok</td></tr>`;
+
+            const customerRows = sortedCustomers.map(([name, data]) =>
+                `<tr><td>${escapeHtml(name)}</td><td>${data.total}</td><td>${fmtDate(data.lastDate)}</td></tr>`
+            ).join("") || `<tr><td colspan="3" class="empty-row">Veri yok</td></tr>`;
+
+            const ovenRows = sortedOvens.map(([ovenIndex, data]) => {
+                const dates = data.dates.slice().sort((a, b) => a - b);
+                let idleHours = 0;
+                for (let i = 1; i < dates.length; i++) {
+                    idleHours += Math.max(0, (dates[i] - dates[i - 1]) / 3600000 - CASTING_INTERVAL);
+                }
+                return `<tr><td>Ocak ${ovenIndex + 1}</td><td>${data.total}</td><td>${dates.length > 1 ? Math.round(idleHours) + " saat" : "-"}</td></tr>`;
+            }).join("") || `<tr><td colspan="3" class="empty-row">Veri yok</td></tr>`;
+
+            return `
+                <!doctype html>
+                <html lang="tr">
+                <head>
+                    <meta charset="utf-8">
+                    <title>Üretim Raporu</title>
+                    <style>
+                        * { box-sizing: border-box; }
+                        body { background: #eef2f6; color: #111827; font-family: Arial, sans-serif; margin: 0; padding: 16px; }
+                        .sheet { background: #ffffff; border: 1px solid #d9e2ea; border-radius: 10px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.10); margin-bottom: 16px; overflow: hidden; }
+                        .hero { background: #101820; color: #ffffff; padding: 12px 16px; }
+                        .hero h1 { font-size: 16px; margin: 0; }
+                        table { border-collapse: collapse; font-size: 12px; width: 100%; }
+                        th { background: #f1f5f9; color: #334155; font-size: 10px; letter-spacing: 0.4px; padding: 7px 10px; text-align: left; text-transform: uppercase; }
+                        td { border-top: 1px solid #edf2f7; padding: 5px 10px; }
+                        tr:nth-child(even) td { background: #f8fafc; }
+                        .empty-row { color: #94a3b8; font-weight: 700; text-align: center; }
+                    </style>
+                </head>
+                <body>
+                    <main class="sheet">
+                        <div class="hero"><h1>Haftalık Üretim (son 12 hafta)</h1></div>
+                        <table><thead><tr><th>Hafta</th><th>Toplam Döküm</th><th>Çap Dağılımı</th></tr></thead><tbody>${weeklyRows}</tbody></table>
+                    </main>
+                    <main class="sheet">
+                        <div class="hero"><h1>Aylık Üretim (son 12 ay)</h1></div>
+                        <table><thead><tr><th>Ay</th><th>Toplam Döküm</th><th>Çap Dağılımı</th></tr></thead><tbody>${monthlyRows}</tbody></table>
+                    </main>
+                    <main class="sheet">
+                        <div class="hero"><h1>Müşteri Bazlı Döküm Geçmişi</h1></div>
+                        <table><thead><tr><th>Müşteri</th><th>Toplam Döküm</th><th>Son Döküm Tarihi</th></tr></thead><tbody>${customerRows}</tbody></table>
+                    </main>
+                    <main class="sheet">
+                        <div class="hero"><h1>Ocak Bazlı Üretim ve Boşta Kalma</h1></div>
+                        <table><thead><tr><th>Ocak</th><th>Toplam Döküm</th><th>Tahmini Boşta Kalma</th></tr></thead><tbody>${ovenRows}</tbody></table>
+                    </main>
+                </body>
+                </html>
+            `;
+        }
+
+        function openProductionReportPage() {
+            const reportWindow = openSizedReportWindow();
+            if (!reportWindow) {
+                showAlert("Üretim raporu penceresi açılamadı. Tarayıcı izinlerini kontrol edin.", "error");
+                return;
+            }
+            reportWindow.document.write(createProductionReportHtml());
+            reportWindow.document.close();
+            reportWindow.focus();
+        }
+
         function createReportHtml() {
             const reportCastings = getReportCastings();
             const includeNote = hasReportNotes(reportCastings);
@@ -12396,6 +12575,16 @@
                 reportWindow.document.write(html);
                 reportWindow.document.close();
                 reportWindow.focus();
+            }
+        }
+
+        function logAuditEvent(action, detail) {
+            try {
+                if (window.networkStore && window.networkStore.logAudit) {
+                    window.networkStore.logAudit(action, detail ? String(detail) : "");
+                }
+            } catch (error) {
+                console.warn("Audit log gönderilemedi", error);
             }
         }
 

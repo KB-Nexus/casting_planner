@@ -1,1 +1,4 @@
-- Müşteriler > KM Analizleri sekmesinde bir çapın analiz/kalite metni değiştirilip kaydedildiğinde, plan tablosunda o çapa bağlı ve elle özelleştirilmemiş KM satırları artık otomatik olarak yeni değerle güncelleniyor.
+- Sipariş, tamamlanmış döküm kaydı ve kalite portföyü silme işlemlerine onay adımı eklendi.
+- Geri alma (undo) geçmişi artık kalıcı: uygulama kapatılıp açılsa bile son 40 işlem geri alınabiliyor.
+- Yeni "Üretim Raporu" ekranı: haftalık/aylık üretim ve çap dağılımı, müşteri bazlı döküm geçmişi, ocak bazlı üretim ve boşta kalma süresi.
+- Kritik silme işlemleri artık buluttaki denetim (audit) kaydına düşüyor.

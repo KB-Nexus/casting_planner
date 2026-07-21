@@ -28,6 +28,12 @@ export default {
     if (url.pathname.startsWith("/api/state/backups/") && request.method === "GET") {
       return loadAppStateBackup(request, env, url.pathname.slice("/api/state/backups/".length));
     }
+    if (url.pathname === "/api/audit" && request.method === "POST") {
+      return recordAuditEvent(request, env);
+    }
+    if (url.pathname === "/api/audit" && request.method === "GET") {
+      return listAuditEvents(request, env);
+    }
     if (url.pathname === "/api/lock/acquire" && request.method === "POST") {
       return acquireLock(request, env);
     }
@@ -273,6 +279,54 @@ async function loadAppStateBackup(request, env, rawStamp) {
     createdAt: record.created_at,
     username: record.created_by_username,
     hostname: record.created_by_hostname,
+  });
+}
+
+const MAX_AUDIT_LOG_ROWS = 5000;
+
+async function recordAuditEvent(request, env) {
+  if (!(await requireUploadAuth(request, env))) return json({ error: "unauthorized" }, 401);
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "invalid_json" }, 400);
+  }
+  const { username, hostname, action, detail } = body || {};
+  if (!action || typeof action !== "string" || action.length > 100) {
+    return json({ error: "invalid_payload" }, 400);
+  }
+  const detailText = detail === undefined || detail === null ? null : String(detail).slice(0, 2000);
+  const nowIso = new Date().toISOString();
+  await env.DB.batch([
+    env.DB.prepare(`
+      INSERT INTO audit_log (ts, username, hostname, action, detail)
+      VALUES (?1, ?2, ?3, ?4, ?5)
+    `).bind(nowIso, username || null, hostname || null, action, detailText),
+    env.DB.prepare(`
+      DELETE FROM audit_log WHERE id NOT IN (
+        SELECT id FROM audit_log ORDER BY id DESC LIMIT ?1
+      )
+    `).bind(MAX_AUDIT_LOG_ROWS),
+  ]);
+  return json({ ok: true, ts: nowIso });
+}
+
+async function listAuditEvents(request, env) {
+  if (!(await requireUploadAuth(request, env))) return json({ error: "unauthorized" }, 401);
+  const url = new URL(request.url);
+  const limit = Math.min(500, Math.max(1, parseInt(url.searchParams.get("limit") || "200", 10) || 200));
+  const { results } = await env.DB.prepare(`
+    SELECT ts, username, hostname, action, detail FROM audit_log ORDER BY id DESC LIMIT ?1
+  `).bind(limit).all();
+  return json({
+    events: (results || []).map(row => ({
+      ts: row.ts,
+      username: row.username,
+      hostname: row.hostname,
+      action: row.action,
+      detail: row.detail,
+    })),
   });
 }
 
